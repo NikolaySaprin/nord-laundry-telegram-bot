@@ -1,0 +1,34 @@
+name: Deploy Telegram Bot to VPS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy Bot to VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          debug: true
+          script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            cd /var/www/html/nord-laundry-telegram-bot
+            git fetch --all
+            git reset --hard origin/main
+            # Установка зависимостей
+            npm install
+            # Компиляция TypeScript
+            npm run build
+            # Запуск/перезапуск бота
+            pm2 start ecosystem.config.js --env production
+            # Сохраняем процесс лист для автозагрузки
+            pm2 save
