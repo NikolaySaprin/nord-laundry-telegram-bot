@@ -1,6 +1,6 @@
 {
   "name": "nord-laundry-bot",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Telegram bot for Nord Laundry business applications",
   "type": "module",
   "main": "bot-runner.mjs",
