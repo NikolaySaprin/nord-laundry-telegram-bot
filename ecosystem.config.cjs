@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'nord-laundry-bot',
+      name: 'nord-laundry-telegram-bot',
       cwd: '/var/www/html/nord-laundry-telegram-bot',
       script: 'node',
       args: 'bot-runner.mjs',
