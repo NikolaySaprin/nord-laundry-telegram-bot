@@ -1,0 +1,33 @@
+{
+  "name": "nord-laundry-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for Nord Laundry business applications",
+  "type": "module",
+  "main": "bot-runner.mjs",
+  "scripts": {
+    "dev": "node --watch bot-runner.mjs",
+    "start": "node bot-runner.mjs",
+    "build": "tsc",
+    "build:watch": "tsc --watch"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "laundry",
+    "business"
+  ],
+  "author": "Nord Laundry",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "grammy": "^1.38.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.8",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
