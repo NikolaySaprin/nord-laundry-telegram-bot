@@ -46,7 +46,7 @@ export class ApplicationBot {
       };
 
       await this.handleNewApplication(application);
-      await ctx.reply("Спасибо! Ваш вопрос передан нашему специалисту. Мы ответим вам в этом чате.");
+      await ctx.reply("Спасибо за заявку! Наш менеджер свяжется с вами в ближайшее время.");
     });
   }
 
