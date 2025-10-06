@@ -1,5 +1,5 @@
 {
-  "name": "nord-laundry-bot",
+  "name": "nord-laundry-telegram-bot",
   "version": "1.2.0",
   "description": "Telegram bot for Nord Laundry business applications",
   "type": "module",
