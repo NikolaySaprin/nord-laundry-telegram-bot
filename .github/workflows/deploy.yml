@@ -29,6 +29,6 @@ jobs:
             # Компиляция TypeScript
             npm run build
             # Запуск/перезапуск бота
-            pm2 start ecosystem.config.js --env production
+            pm2 start ecosystem.config.cjs --env production
             # Сохраняем процесс лист для автозагрузки
             pm2 save
