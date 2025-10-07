@@ -46,7 +46,7 @@ export class ApplicationBot {
       };
 
       await this.handleNewApplication(application);
-      await ctx.reply("Спасибо за заявку! Наш менеджер свяжется с вами в ближайшее время.");
+      await ctx.reply("Спасибо за заявку!/nМы свяжется с Вами в ближайшее время");
     });
   }
 
