@@ -48,7 +48,7 @@ export class ApplicationBot {
 
         await this.handleNewApplication(application);
         await ctx.reply("Спасибо за заявку!\nМы свяжемся с Вами в ближайшее время");
-      } else if (ctx.chat?.id.toString() === this.groupChatId && ctx.message?.message_thread_id) {
+      } else if (ctx.chat?.id.toString() === this.groupChatId.toString() && ctx.message?.message_thread_id) {
         // Обработка сообщений в группе (ответы менеджеров)
         await this.handleManagerReply(ctx);
       }
@@ -160,16 +160,30 @@ export class ApplicationBot {
       const message = ctx.message;
       const from = ctx.from;
       
-      if (!message || !from || !message.message_thread_id) return;
+      console.log('Получено сообщение в группе:', {
+        chatId: ctx.chat?.id,
+        threadId: message?.message_thread_id,
+        fromUserId: from?.id,
+        messageText: message?.text || message?.caption
+      });
+      
+      if (!message || !from || !message.message_thread_id) {
+        console.log('Пропуск сообщения: отсутствуют необходимые данные');
+        return;
+      }
       
       // Получаем текст сообщения
       const messageText = message.text || message.caption || '';
-      if (!messageText.trim()) return;
+      if (!messageText.trim()) {
+        console.log('Пропуск сообщения: пустой текст');
+        return;
+      }
       
       // Находим клиента по thread_id
       const clientUserId = this.threadToUser.get(message.message_thread_id);
       if (!clientUserId) {
         console.log('Не найден клиент для thread_id:', message.message_thread_id);
+        console.log('Доступные thread_id:', Array.from(this.threadToUser.keys()));
         return;
       }
       
@@ -177,7 +191,7 @@ export class ApplicationBot {
       const managerName = this.formatManagerSignature(from);
       
       // Отправляем ответ клиенту с подписью
-      const responseMessage = `${messageText}\n\n_Ответ от ${managerName}_`;
+      const responseMessage = `${messageText}\n\n*Ответ от ${managerName}*`;
       
       await this.sendToUser(clientUserId, responseMessage);
       
@@ -213,8 +227,20 @@ export class ApplicationBot {
   async sendToUser(userId: number, message: string): Promise<void> {
     try {
       await this.bot.api.sendMessage(userId, message, { parse_mode: 'Markdown' });
-    } catch (error) {
-      console.error('Ошибка отправки сообщения пользователю:', error);
+      console.log(`Сообщение успешно отправлено пользователю ${userId}`);
+    } catch (error: any) {
+      console.error(`Ошибка отправки сообщения пользователю ${userId}:`, error);
+      
+      // Если ошибка связана с форматированием Markdown, попробуем отправить без форматирования
+      if (error.description && error.description.includes('parse')) {
+        try {
+          const plainMessage = message.replace(/\*([^*]+)\*/g, '$1'); // Убираем Markdown форматирование
+          await this.bot.api.sendMessage(userId, plainMessage);
+          console.log(`Сообщение отправлено пользователю ${userId} без форматирования`);
+        } catch (retryError) {
+          console.error(`Ошибка повторной отправки пользователю ${userId}:`, retryError);
+        }
+      }
     }
   }
 
