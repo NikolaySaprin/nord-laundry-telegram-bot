@@ -48,9 +48,18 @@ export class ApplicationBot {
 
         await this.handleNewApplication(application);
         await ctx.reply("Спасибо за заявку!\nМы свяжемся с Вами в ближайшее время");
-      } else if (ctx.chat?.id.toString() === this.groupChatId.toString() && ctx.message?.message_thread_id) {
-        // Обработка сообщений в группе (ответы менеджеров)
-        await this.handleManagerReply(ctx);
+      } else if (ctx.chat?.id.toString() === this.groupChatId.toString()) {
+        if (ctx.message?.message_thread_id) {
+          // Обработка сообщений в темах форума (ответы менеджеров)
+          await this.handleManagerReply(ctx);
+        } else {
+          // Сообщения в общем чате группы без thread_id игнорируются
+          console.log('Игнорируется сообщение в общем чате группы (без thread_id):', {
+            chatId: ctx.chat?.id,
+            fromUserId: ctx.from?.id,
+            messageText: ctx.message?.text || ctx.message?.caption
+          });
+        }
       }
     });
   }
@@ -160,7 +169,7 @@ export class ApplicationBot {
       const message = ctx.message;
       const from = ctx.from;
       
-      console.log('Получено сообщение в группе:', {
+      console.log('Получено сообщение в теме форума:', {
         chatId: ctx.chat?.id,
         threadId: message?.message_thread_id,
         fromUserId: from?.id,
