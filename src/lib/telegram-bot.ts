@@ -5,6 +5,7 @@ export class ApplicationBot {
   private bot: Bot;
   private groupChatId: string;
   private activeThreads: Map<string, number> = new Map(); // Хранит thread_id по идентификатору пользователя
+  private threadToUser: Map<number, number> = new Map(); // Хранит telegramUserId по thread_id для связи тем с клиентами
 
   constructor(token: string, groupChatId: string) {
     if (!token) {
@@ -26,27 +27,31 @@ export class ApplicationBot {
 
     // Обрабатываем все текстовые сообщения в личных чатах
     this.bot.on('message', async (ctx: Context) => {
-      if (ctx.chat?.type !== 'private') return;
-      
-      const user = ctx.from;
-      const messageText = ctx.message?.text;
-      
-      if (!user || !messageText) return;
+      if (ctx.chat?.type === 'private') {
+        // Обработка личных сообщений от клиентов
+        const user = ctx.from;
+        const messageText = ctx.message?.text;
+        
+        if (!user || !messageText) return;
 
-      // Создаем заявку из сообщения в Telegram
-      const application: Application = {
-        source: 'telegram_direct',
-        userIdentifierTelegram: `tg_${user.username || user.id}`,
-        userNameTelegram: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Пользователь',
-        userUsernameTelegram: user.username || undefined,
-        userMessage: messageText,
-        telegramUserId: user.id,
-        name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Пользователь', // Имя для общего поля
-        phone: 'Не указан' // В Telegram телефон не доступен по умолчанию
-      };
+        // Создаем заявку из сообщения в Telegram
+        const application: Application = {
+          source: 'telegram_direct',
+          userIdentifierTelegram: `tg_${user.username || user.id}`,
+          userNameTelegram: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Пользователь',
+          userUsernameTelegram: user.username || undefined,
+          userMessage: messageText,
+          telegramUserId: user.id,
+          name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Пользователь', // Имя для общего поля
+          phone: 'Не указан' // В Telegram телефон не доступен по умолчанию
+        };
 
-      await this.handleNewApplication(application);
-      await ctx.reply("Спасибо за заявку!\nМы свяжемся с Вами в ближайшее время");
+        await this.handleNewApplication(application);
+        await ctx.reply("Спасибо за заявку!\nМы свяжемся с Вами в ближайшее время");
+      } else if (ctx.chat?.id.toString() === this.groupChatId && ctx.message?.message_thread_id) {
+        // Обработка сообщений в группе (ответы менеджеров)
+        await this.handleManagerReply(ctx);
+      }
     });
   }
 
@@ -66,6 +71,11 @@ export class ApplicationBot {
         
         threadId = topic.message_thread_id;
         this.activeThreads.set(userIdentifier, threadId);
+        
+        // Сохраняем связь между thread_id и telegramUserId для Telegram заявок
+        if (application.telegramUserId) {
+          this.threadToUser.set(threadId, application.telegramUserId);
+        }
         
         // Отправляем первоначальное сообщение о заявке
         const message = this.formatApplicationMessage(application);
@@ -144,10 +154,65 @@ export class ApplicationBot {
     return `📝 Новое сообщение в заявке:\n\n${application.userMessage || 'Без текста'}\n⏰ Время: ${new Date().toLocaleString('ru-RU')}`;
   }
 
+  // Обработка ответов менеджеров в группе
+  private async handleManagerReply(ctx: Context): Promise<void> {
+    try {
+      const message = ctx.message;
+      const from = ctx.from;
+      
+      if (!message || !from || !message.message_thread_id) return;
+      
+      // Получаем текст сообщения
+      const messageText = message.text || message.caption || '';
+      if (!messageText.trim()) return;
+      
+      // Находим клиента по thread_id
+      const clientUserId = this.threadToUser.get(message.message_thread_id);
+      if (!clientUserId) {
+        console.log('Не найден клиент для thread_id:', message.message_thread_id);
+        return;
+      }
+      
+      // Формируем подпись менеджера
+      const managerName = this.formatManagerSignature(from);
+      
+      // Отправляем ответ клиенту с подписью
+      const responseMessage = `${messageText}\n\n_Ответ от ${managerName}_`;
+      
+      await this.sendToUser(clientUserId, responseMessage);
+      
+      console.log(`Ответ отправлен клиенту ${clientUserId} от менеджера ${from.id}`);
+      
+    } catch (error) {
+      console.error('Ошибка обработки ответа менеджера:', error);
+    }
+  }
+  
+  // Форматирование подписи менеджера
+  private formatManagerSignature(manager: any): string {
+    const firstName = manager.first_name || '';
+    const lastName = manager.last_name || '';
+    const username = manager.username;
+    
+    let signature = '';
+    
+    if (firstName || lastName) {
+      signature = `${firstName} ${lastName}`.trim();
+    } else {
+      signature = 'Менеджер';
+    }
+    
+    if (username) {
+      signature += ` (@${username})`;
+    }
+    
+    return signature;
+  }
+
   // Метод для отправки ответов пользователям (для Telegram)
   async sendToUser(userId: number, message: string): Promise<void> {
     try {
-      await this.bot.api.sendMessage(userId, message);
+      await this.bot.api.sendMessage(userId, message, { parse_mode: 'Markdown' });
     } catch (error) {
       console.error('Ошибка отправки сообщения пользователю:', error);
     }
