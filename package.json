@@ -1,33 +1,46 @@
 {
   "name": "nord-laundry-telegram-bot",
   "version": "1.3.0",
-  "description": "Telegram bot for Nord Laundry business applications",
-  "type": "module",
+  "description": "Unified Telegram and WhatsApp bot for Nord Laundry",
   "main": "bot-runner.mjs",
+  "type": "module",
   "scripts": {
-    "dev": "node --watch bot-runner.mjs",
     "start": "node bot-runner.mjs",
     "build": "tsc",
-    "build:watch": "tsc --watch"
+    "dev": "tsc --watch",
+    "clear-session": "./clear-session.sh",
+    "check-session": "./check-session.sh",
+    "check-auth": "./check-auth-status.sh",
+    "backup-auth": "./backup-auth.sh",
+    "restore-auth": "./restore-auth.sh",
+    "upload-to-vps": "./upload-to-vps.sh",
+    "auto-upload": "./auto-upload.sh",
+    "vps-diagnostic": "./vps-diagnostic.sh",
+    "deploy": "./deploy.sh",
+    "setup-auto-deploy": "./setup-auto-deploy.sh",
+    "webhook-deploy": "./webhook-deploy.sh",
+    "clear-thanks-history": "./clear-thanks-history.sh",
+    "test-thanks": "./test-thanks-messages.sh",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "telegram",
+    "whatsapp",
     "bot",
     "laundry",
-    "business"
+    "customer-service"
   ],
   "author": "Nord Laundry",
   "license": "MIT",
   "dependencies": {
-    "dotenv": "^17.2.3",
-    "grammy": "^1.38.2",
-    "zod": "^3.25.76"
+    "grammy": "^1.21.1",
+    "whatsapp-web.js": "^1.23.0",
+    "qrcode-terminal": "^0.12.0",
+    "dotenv": "^17.2.3"
   },
   "devDependencies": {
-    "@types/node": "^22.18.8",
-    "typescript": "^5.9.3"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "@types/node": "^22.10.2",
+    "@types/qrcode-terminal": "^0.12.5",
+    "typescript": "^5.7.2"
   }
 }

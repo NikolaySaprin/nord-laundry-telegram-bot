@@ -1,13 +1,16 @@
 import { Bot, Context } from 'grammy';
-import { Application } from '../types/application-types';
+import { Application, ManagerReply } from '../types/application-types.js';
+import { WhatsAppService } from './whatsapp-service.js';
 
 export class ApplicationBot {
   private bot: Bot;
   private groupChatId: string;
   private activeThreads: Map<string, number> = new Map(); // Хранит thread_id по идентификатору пользователя
-  private threadToUser: Map<number, number> = new Map(); // Хранит telegramUserId по thread_id для связи тем с клиентами
+  private threadToUser: Map<number, { userId?: string; platform: 'telegram' | 'whatsapp'; userIdentifier: string }> = new Map(); // Хранит данные пользователя по thread_id
+  private thanksMessageSent: Set<string> = new Set(); // Отслеживаем отправленные благодарственные сообщения
+  private whatsappService?: WhatsAppService;
 
-  constructor(token: string, groupChatId: string) {
+  constructor(token: string, groupChatId: string, enableWhatsApp: boolean = false) {
     if (!token) {
       throw new Error('Telegram bot token is required');
     }
@@ -16,6 +19,18 @@ export class ApplicationBot {
     }
     this.groupChatId = groupChatId;
     this.bot = new Bot(token);
+    
+    // Инициализируем WhatsApp сервис, если включен
+    if (enableWhatsApp) {
+      console.log('🔧 Инициализируем WhatsApp сервис...');
+      this.whatsappService = new WhatsAppService();
+      // Устанавливаем обработчик для новых заявок из WhatsApp
+      this.whatsappService.setApplicationHandler((application: Application) => this.handleNewApplication(application));
+      console.log('✅ WhatsApp сервис инициализирован и обработчик установлен');
+    } else {
+      console.log('⚠️ WhatsApp сервис отключен');
+    }
+    
     this.setupHandlers();
   }
 
@@ -43,11 +58,18 @@ export class ApplicationBot {
           userMessage: messageText,
           telegramUserId: user.id,
           name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Пользователь', // Имя для общего поля
-          phone: 'Не указан' // В Telegram телефон не доступен по умолчанию
+          phone: 'Не указан', // В Telegram телефон не доступен по умолчанию
+          messageType: 'text'
         };
 
         await this.handleNewApplication(application);
-        await ctx.reply("Спасибо за заявку!\nМы свяжемся с Вами в ближайшее время");
+        
+        // Отправляем благодарственное сообщение только при первом сообщении
+        const userIdentifier = `tg_${user.id}`;
+        if (!this.thanksMessageSent.has(userIdentifier)) {
+          await ctx.reply("Спасибо за заявку!\nМы свяжемся с Вами в ближайшее время");
+          this.thanksMessageSent.add(userIdentifier);
+        }
       } else if (ctx.chat?.id.toString() === this.groupChatId.toString()) {
         if (ctx.message?.message_thread_id) {
           // Обработка сообщений в темах форума (ответы менеджеров)
@@ -66,12 +88,26 @@ export class ApplicationBot {
 
   async handleNewApplication(application: Application): Promise<void> {
     try {
-      const userIdentifier = application.userIdentifierTelegram || `website_${application.phone}`;
+      console.log('📋 Обрабатываем новую заявку:', {
+        source: application.source,
+        userMessage: application.userMessage,
+        userName: application.name
+      });
+
+      const userIdentifier = application.whatsappUserId || application.userIdentifierTelegram || `website_${application.phone}`;
+      const platform = application.source === 'whatsapp' ? 'whatsapp' : 'telegram';
       let threadId = this.activeThreads.get(userIdentifier);
+
+      console.log('🔍 Ищем существующую тему для пользователя:', {
+        userIdentifier,
+        platform,
+        existingThreadId: threadId
+      });
       
       if (!threadId) {
         // Создаем новую тему форума
         const topicName = this.generateTopicName(application);
+        console.log('🆕 Создаем новую тему форума:', topicName);
         
         const topic = await this.bot.api.createForumTopic(
           this.groupChatId, 
@@ -80,27 +116,33 @@ export class ApplicationBot {
         
         threadId = topic.message_thread_id;
         this.activeThreads.set(userIdentifier, threadId);
+        this.threadToUser.set(threadId, {
+          userId: application.whatsappUserId || application.telegramUserId?.toString(),
+          platform,
+          userIdentifier
+        });
         
-        // Сохраняем связь между thread_id и telegramUserId для Telegram заявок
-        if (application.telegramUserId) {
-          this.threadToUser.set(threadId, application.telegramUserId);
-        }
+        console.log('✅ Новая тема создана с ID:', threadId);
         
         // Отправляем первоначальное сообщение о заявке
         const message = this.formatApplicationMessage(application);
+        console.log('📤 Отправляем сообщение о заявке в тему:', threadId);
         await this.bot.api.sendMessage(
           this.groupChatId, 
           message,
           { message_thread_id: threadId }
         );
+        console.log('✅ Сообщение о заявке отправлено');
       } else {
         // Добавляем в существующую тему
+        console.log('📝 Добавляем сообщение в существующую тему:', threadId);
         const message = this.formatNewMessage(application);
         await this.bot.api.sendMessage(
           this.groupChatId,
           message,
           { message_thread_id: threadId }
         );
+        console.log('✅ Сообщение добавлено в существующую тему');
       }
     } catch (error) {
       console.error('Ошибка обработки заявки:', error);
@@ -123,6 +165,8 @@ export class ApplicationBot {
     switch (application.source) {
       case 'telegram_direct':
         return `${sourceLabel}: @${application.userUsernameTelegram || application.telegramUserId}`;
+      case 'whatsapp':
+        return `${sourceLabel}: ${application.whatsappUserName} (${application.whatsappUserPhone})`;
       default:
         return `${sourceLabel}: ${application.name} (${application.phone})`;
     }
@@ -145,6 +189,8 @@ export class ApplicationBot {
     
     if (application.source === 'telegram_direct') {
       message = `💬 Новая заявка ${sourceLabel}:\n\n👤 Пользователь: ${application.userNameTelegram}${application.userUsernameTelegram ? ` (@${application.userUsernameTelegram})` : ''}\n📝 Вопрос: ${application.userMessage}`;
+    } else if (application.source === 'whatsapp') {
+      message = `💬 Новая заявка ${sourceLabel}:\n\n👤 Пользователь: ${application.whatsappUserName}\n📞 Телефон: ${application.whatsappUserPhone}\n📝 Вопрос: ${application.userMessage}`;
     } else {
       message = `📋 Новая заявка ${sourceLabel}:\n\n👤 Имя: ${application.name}\n📞 Телефон: ${application.phone}`;
     }
@@ -152,6 +198,19 @@ export class ApplicationBot {
     // Добавляем сферу деятельности, если есть
     if (application.sphere) {
       message += `\n🏢 Сфера: ${application.sphere}`;
+    }
+    
+    // Добавляем информацию о медиа, если есть
+    if (application.mediaUrls && application.mediaUrls.length > 0) {
+      const mediaTypeLabels: Record<Application['messageType'], string> = {
+        'text': '📝',
+        'image': '🖼️',
+        'video': '🎥',
+        'document': '📄',
+        'audio': '🎵'
+      };
+      const mediaLabel = mediaTypeLabels[application.messageType] || '📎';
+      message += `\n${mediaLabel} Медиа: ${application.mediaUrls.length} файл(ов)`;
     }
     
     message += `\n⏰ Время: ${new Date().toLocaleString('ru-RU')}\n\nСтатус: ⏳ Ожидает обработки`;
@@ -188,9 +247,9 @@ export class ApplicationBot {
         return;
       }
       
-      // Находим клиента по thread_id
-      const clientUserId = this.threadToUser.get(message.message_thread_id);
-      if (!clientUserId) {
+      // Находим данные клиента по thread_id
+      const userData = this.threadToUser.get(message.message_thread_id);
+      if (!userData) {
         console.log('Не найден клиент для thread_id:', message.message_thread_id);
         console.log('Доступные thread_id:', Array.from(this.threadToUser.keys()));
         return;
@@ -198,13 +257,48 @@ export class ApplicationBot {
       
       // Формируем подпись менеджера
       const managerName = this.formatManagerSignature(from);
+      const managerUsername = from.username ? `@${from.username}` : 'Менеджер';
       
-      // Отправляем ответ клиенту с подписью
-      const responseMessage = `${messageText}\n\n*Ответ от ${managerName}*`;
+      // Собираем медиа файлы, если есть (исключаем фото/аватары для WhatsApp)
+      const mediaUrls: string[] = [];
+      // Исключаем фото для WhatsApp, чтобы не загружать аватары
+      // if (message.photo) {
+      //   const photo = message.photo[message.photo.length - 1]; // Берем самое большое фото
+      //   const file = await this.bot.api.getFile(photo.file_id);
+      //   mediaUrls.push(`https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`);
+      // }
+      if (message.video) {
+        const file = await this.bot.api.getFile(message.video.file_id);
+        mediaUrls.push(`https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`);
+      }
+      if (message.document) {
+        const file = await this.bot.api.getFile(message.document.file_id);
+        mediaUrls.push(`https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`);
+      }
+      if (message.audio) {
+        const file = await this.bot.api.getFile(message.audio.file_id);
+        mediaUrls.push(`https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`);
+      }
       
-      await this.sendToUser(clientUserId, responseMessage);
+      const managerReply: ManagerReply = {
+        threadId: message.message_thread_id,
+        targetUserId: userData.userId!,
+        targetPlatform: userData.platform,
+        managerName,
+        managerUsername,
+        message: messageText,
+        mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
+      };
+
+      // Отправляем ответ в зависимости от платформы
+      if (userData.platform === 'telegram' && userData.userId) {
+        // Для Telegram отправляем только ответ менеджера без дополнительных сообщений
+        await this.sendToUser(parseInt(userData.userId), messageText);
+      } else if (userData.platform === 'whatsapp' && this.whatsappService) {
+        await this.whatsappService.sendManagerReply(managerReply);
+      }
       
-      console.log(`Ответ отправлен клиенту ${clientUserId} от менеджера ${from.id}`);
+      console.log(`Ответ отправлен клиенту ${userData.userId} (${userData.platform}) от менеджера ${from.id}`);
       
     } catch (error) {
       console.error('Ошибка обработки ответа менеджера:', error);
@@ -253,8 +347,18 @@ export class ApplicationBot {
     }
   }
 
+
   start(): void {
     this.bot.start();
     console.log('Telegram бот запущен');
+    if (this.whatsappService) {
+      this.whatsappService.start();
+    }
+  }
+
+  stop(): void {
+    if (this.whatsappService) {
+      this.whatsappService.stop();
+    }
   }
 }

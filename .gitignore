@@ -67,3 +67,6 @@ Thumbs.db
 
 # PM2 files
 .pm2/
+
+# WhatsApp session data
+.wwebjs_auth/

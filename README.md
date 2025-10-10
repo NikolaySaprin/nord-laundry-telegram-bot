@@ -1,25 +1,14 @@
-# Nord Laundry Telegram Bot
+# Nord Laundry Unified Bot
 
-Telegram бот для обработки заявок с сайта Nord Laundry.
+Объединенный бот для Telegram и WhatsApp, предназначенный для обработки заявок клиентов прачечной Nord Laundry.
 
-## Описание
+## Возможности
 
-Бот принимает сообщения от пользователей в личных чатах и создает темы в групповом чате для обработки заявок менеджерами.
-
-## Функциональность
-
-- ✅ Обработка команды `/start`
-- ✅ Прием текстовых сообщений от пользователей
-- ✅ Создание тем в групповом чате для каждой заявки
-- ✅ Отправка уведомлений менеджерам
-- ✅ Обработка повторных сообщений от одного пользователя
-
-## Технологии
-
-- **Node.js** - среда выполнения
-- **TypeScript** - типизированный JavaScript
-- **Grammy** - библиотека для работы с Telegram Bot API
-- **dotenv** - управление переменными окружения
+- **Telegram Bot**: Обработка личных сообщений и создание тем форума для менеджеров
+- **WhatsApp Bot**: Интеграция через whatsapp-web.js с QR авторизацией
+- **Двусторонняя связь**: Ответы менеджеров из Telegram доставляются клиентам в WhatsApp
+- **Медиа поддержка**: Обработка изображений, видео, документов и аудио
+- **Форумы**: Автоматическое создание тем для каждой заявки
 
 ## Установка
 
@@ -34,113 +23,119 @@ cd nord-laundry-bot
 npm install
 ```
 
-3. Настройте переменные окружения:
+3. Создайте файл `.env` на основе `env.example`:
 ```bash
 cp env.example .env
-# Отредактируйте .env и добавьте ваши токены
 ```
 
-**Содержимое файла `.env`:**
+4. Настройте переменные окружения в `.env`:
+```env
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+TELEGRAM_GROUP_CHAT_ID=your_telegram_group_chat_id_here
+ENABLE_WHATSAPP=true
 ```
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-TELEGRAM_GROUP_CHAT_ID=your_group_chat_id_here
-```
+
+## Настройка Telegram
+
+1. Создайте бота через [@BotFather](https://t.me/BotFather)
+2. Добавьте бота в группу и сделайте администратором
+3. Включите форумы в группе (если нужно)
+4. Получите ID группы (можно через [@userinfobot](https://t.me/userinfobot))
+
+## Настройка WhatsApp
+
+1. Установите `ENABLE_WHATSAPP=true` в `.env`
+2. Запустите бота: `npm start`
+3. Отсканируйте QR код, который появится в терминале
+4. Сессия будет сохранена в папке `.wwebjs_auth`
 
 ## Запуск
 
-### Разработка
+### Локальная разработка
 ```bash
-npm run build:watch  # Компиляция TypeScript в режиме наблюдения
-npm run dev          # Запуск бота в режиме разработки
+npm run build
+npm start
 ```
 
-### Продакшн
+### Продакшн (PM2)
 ```bash
-npm run build        # Компиляция TypeScript
-npm start            # Запуск бота
+npm run build
+pm2 start ecosystem.config.cjs
 ```
+
+## Развертывание на VPS
+
+1. Скопируйте проект на сервер
+2. Установите зависимости: `npm install`
+3. Настройте `.env` файл
+4. Скомпилируйте: `npm run build`
+5. Запустите через PM2: `pm2 start ecosystem.config.cjs`
+
+### Перенос WhatsApp сессии на VPS
+
+1. После авторизации на локальной машине скопируйте папку `.wwebjs_auth` на сервер
+2. Убедитесь, что права доступа корректны: `chmod -R 755 .wwebjs_auth`
+3. Запустите бота на сервере
 
 ## Структура проекта
 
 ```
-├── src/
-│   ├── lib/
-│   │   └── telegram-bot.ts      # Основная логика бота
-│   └── types/
-│       └── application-types.ts # Типы для заявок
-├── dist/                        # Скомпилированные файлы
-├── bot-runner.mjs              # Точка входа
-├── package.json
-├── tsconfig.json
-└── README.md
+src/
+├── lib/
+│   ├── telegram-bot.ts      # Основной класс бота
+│   └── whatsapp-service.ts  # WhatsApp интеграция
+├── types/
+│   └── application-types.ts # Типы данных
+bot-runner.mjs              # Точка входа
+ecosystem.config.cjs        # PM2 конфигурация
 ```
 
-## Переменные окружения
+## API
 
-| Переменная | Описание | Обязательная |
-|------------|----------|--------------|
-| `TELEGRAM_BOT_TOKEN` | Токен Telegram бота | Да |
-| `TELEGRAM_GROUP_CHAT_ID` | ID группового чата для заявок | Да |
+### ApplicationBot
 
-## Развертывание
+Основной класс для управления ботом.
 
-### Автоматическое развертывание с GitHub Actions
-
-Проект настроен для автоматического развертывания на VPS при пуше в ветку `main`.
-
-**Требуемые секреты в GitHub:**
-- `VPS_HOST` - IP адрес или домен вашего VPS
-- `VPS_USER` - имя пользователя для SSH подключения
-- `VPS_SSH_KEY` - приватный SSH ключ для подключения к серверу
-
-**Настройка секретов:**
-1. Перейдите в Settings → Secrets and variables → Actions
-2. Добавьте необходимые секреты
-3. При пуше в `main` автоматически запустится деплой
-
-### Ручное развертывание с PM2
-
-1. Установите PM2:
-```bash
-npm install -g pm2
+```typescript
+const bot = new ApplicationBot(
+  telegramToken,
+  groupChatId,
+  enableWhatsApp
+);
 ```
 
-2. Запустите бота:
-```bash
-pm2 start ecosystem.config.js --env production
+### WhatsAppService
+
+Сервис для работы с WhatsApp.
+
+```typescript
+const whatsappService = new WhatsAppService();
+whatsappService.setApplicationHandler(handler);
 ```
 
-3. Настройте автозапуск:
-```bash
-pm2 startup
-pm2 save
-```
+## Логирование
 
-### Docker (опционально)
+Бот ведет подробные логи всех операций:
+- Входящие сообщения
+- Создание тем форума
+- Ответы менеджеров
+- Ошибки и предупреждения
 
-```bash
-docker build -t nord-laundry-bot .
-docker run -d --name nord-laundry-bot --env-file .env nord-laundry-bot
-```
+## Устранение неполадок
 
-## Логи
+### WhatsApp не подключается
+- Проверьте интернет соединение
+- Удалите папку `.wwebjs_auth` и переавторизуйтесь
+- Убедитесь, что WhatsApp Web не открыт в браузере
 
-Логи сохраняются в папке `logs/`:
-- `bot-out.log` - стандартный вывод
-- `bot-error.log` - ошибки
+### Telegram конфликты
+- Убедитесь, что запущен только один экземпляр бота
+- Проверьте правильность токена и ID группы
 
-## Мониторинг
-
-```bash
-# Просмотр логов
-pm2 logs nord-laundry-bot
-
-# Статус процессов
-pm2 status
-
-# Перезапуск бота
-pm2 restart nord-laundry-bot
-```
+### Ошибки Puppeteer
+- Обновите Chrome/Chromium
+- Проверьте системные требования
+- Увеличьте лимиты памяти если нужно
 
 ## Лицензия
 
