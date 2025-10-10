@@ -29,8 +29,8 @@ jobs:
             # Компиляция TypeScript
             npm run build
             # Остановка существующего процесса (если есть)
-            pm2 stop nord-laundry-telegram-bot || true
-            pm2 delete nord-laundry-telegram-bot || true
+            pm2 stop nord-laundry-bot || true
+            pm2 delete nord-laundry-bot || true
             # Запуск бота
             pm2 start ecosystem.config.cjs --env production
             # Сохраняем процесс лист для автозагрузки
