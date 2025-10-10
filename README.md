@@ -113,6 +113,32 @@ const whatsappService = new WhatsAppService();
 whatsappService.setApplicationHandler(handler);
 ```
 
+### Webhook API для сайта
+
+Бот предоставляет API endpoint для приема заявок с сайта:
+
+**URL:** `POST /api/application`
+
+```javascript
+// Пример отправки заявки с сайта
+fetch('http://your-vps-ip:3001/api/application', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    name: "Иван Петров",
+    phone: "+7 (999) 123-45-67",
+    sphere: "Прачечная",
+    source: "website_form",
+    userMessage: "Нужна стирка постельного белья",
+    messageType: "text"
+  })
+});
+```
+
+Подробная документация API доступна в файле [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
+
 ## Логирование
 
 Бот ведет подробные логи всех операций:
