@@ -28,8 +28,35 @@ export class WhatsAppService {
           '--disable-gpu',
           '--disable-web-security',
           '--disable-features=VizDisplayCompositor',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-extensions',
+          '--disable-plugins',
+          '--disable-default-apps',
+          '--disable-sync',
+          '--disable-translate',
+          '--hide-scrollbars',
+          '--mute-audio',
+          '--no-default-browser-check',
+          '--no-pings',
+          '--disable-logging',
+          '--disable-permissions-api',
+          '--disable-presentation-api',
+          '--disable-print-preview',
+          '--disable-speech-api',
+          '--disable-file-system',
+          '--disable-notifications',
+          '--disable-background-networking',
+          '--disable-component-extensions-with-background-pages',
+          '--disable-ipc-flooding-protection',
           '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        ]
+        ],
+        timeout: 60000,
+        ignoreDefaultArgs: ['--disable-extensions'],
+        handleSIGINT: false,
+        handleSIGTERM: false,
+        handleSIGHUP: false
       },
       webVersionCache: {
         type: 'remote',
@@ -87,12 +114,14 @@ export class WhatsAppService {
     this.client.on('disconnected', (reason: string) => {
       console.log('📱 WhatsApp клиент отключен:', reason);
       
-      // Перезапускаем только при определенных причинах
-      if (reason === 'LOGOUT' || reason === 'NAVIGATION') {
-        console.log('🔄 Перезапускаем WhatsApp клиент через 5 секунд...');
+      // Перезапускаем при любом отключении, кроме LOGOUT
+      if (reason !== 'LOGOUT') {
+        console.log('🔄 Перезапускаем WhatsApp клиент через 3 секунды...');
         setTimeout(() => {
           this.restartClient();
-        }, 5000);
+        }, 3000);
+      } else {
+        console.log('⚠️ Произошел выход из аккаунта, требуется повторная авторизация');
       }
     });
 
@@ -106,6 +135,14 @@ export class WhatsAppService {
         setTimeout(() => {
           this.forceSaveSession();
         }, 1000);
+      }
+      
+      // Если состояние изменилось на UNPAIRED, пытаемся восстановить
+      if (state === 'UNPAIRED' || state === 'UNPAIRED_IDLE') {
+        console.log('⚠️ Обнаружено разлогинивание, пытаемся восстановить сессию...');
+        setTimeout(() => {
+          this.restartClient();
+        }, 5000);
       }
     });
 
@@ -124,6 +161,11 @@ export class WhatsAppService {
       setTimeout(() => {
         this.forceSaveSession();
       }, 1000);
+      
+      // Создаем архив для переноса на VPS
+      setTimeout(() => {
+        this.createAuthArchive();
+      }, 3000);
     });
 
     // Обработка загрузки сессии
@@ -163,6 +205,11 @@ export class WhatsAppService {
       setTimeout(() => {
         this.forceSaveSession();
       }, 2000);
+      
+      // Создаем архив для переноса на VPS
+      setTimeout(() => {
+        this.createAuthArchive();
+      }, 5000);
 
       // Логируем количество найденных чатов, но не отправляем приветствия
       try {
@@ -176,18 +223,28 @@ export class WhatsAppService {
 
     // Глобальная обработка ошибок (только для критических ошибок)
     process.on('uncaughtException', (error) => {
-      if (error.message.includes('Protocol error') || error.message.includes('Execution context was destroyed')) {
-        console.log('⚠️ Обнаружена критическая ошибка Puppeteer, но не перезапускаем автоматически');
+      if (error.message.includes('Protocol error') || error.message.includes('Execution context was destroyed') || error.message.includes('Session closed')) {
+        console.log('⚠️ Обнаружена критическая ошибка Puppeteer, пытаемся восстановить сессию...');
         console.log('💡 Ошибка:', error.message);
+        
+        // Пытаемся перезапустить клиент при критических ошибках
+        setTimeout(() => {
+          this.restartClient();
+        }, 10000);
       }
     });
 
     process.on('unhandledRejection', (reason) => {
       if (reason && typeof reason === 'object' && 'message' in reason) {
         const error = reason as Error;
-        if (error.message.includes('Protocol error') || error.message.includes('Execution context was destroyed')) {
-          console.log('⚠️ Обнаружено необработанное отклонение Promise (Puppeteer), но не перезапускаем автоматически');
+        if (error.message.includes('Protocol error') || error.message.includes('Execution context was destroyed') || error.message.includes('Session closed')) {
+          console.log('⚠️ Обнаружено необработанное отклонение Promise (Puppeteer), пытаемся восстановить сессию...');
           console.log('💡 Ошибка:', error.message);
+          
+          // Пытаемся перезапустить клиент при критических ошибках
+          setTimeout(() => {
+            this.restartClient();
+          }, 10000);
         }
       }
     });
@@ -505,14 +562,86 @@ export class WhatsAppService {
       this.restartAttempts++;
       console.log(`🔄 Попытка перезапуска WhatsApp клиента #${this.restartAttempts}`);
       
-      if (this.restartAttempts > 3) {
+      if (this.restartAttempts > 5) {
         console.log('❌ Превышено максимальное количество попыток перезапуска');
         return;
       }
 
-      await this.client.destroy();
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Безопасно уничтожаем клиент
+      try {
+        if (this.client) {
+          await this.client.destroy();
+        }
+      } catch (error) {
+        console.log('⚠️ Ошибка при уничтожении клиента (игнорируем):', error instanceof Error ? error.message : 'Неизвестная ошибка');
+      }
+
+      // Ждем больше времени для полной очистки
+      await new Promise(resolve => setTimeout(resolve, 5000));
       
+      // Пересоздаем клиент с теми же настройками
+      this.client = new Client({
+        authStrategy: new LocalAuth({
+          clientId: "nord-laundry-whatsapp",
+          dataPath: "./.wwebjs_auth"
+        }),
+        puppeteer: {
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-extensions',
+            '--disable-plugins',
+            '--disable-default-apps',
+            '--disable-sync',
+            '--disable-translate',
+            '--hide-scrollbars',
+            '--mute-audio',
+            '--no-default-browser-check',
+            '--no-pings',
+            '--disable-logging',
+            '--disable-permissions-api',
+            '--disable-presentation-api',
+            '--disable-print-preview',
+            '--disable-speech-api',
+            '--disable-file-system',
+            '--disable-notifications',
+            '--disable-background-networking',
+            '--disable-component-extensions-with-background-pages',
+            '--disable-ipc-flooding-protection',
+            '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        ],
+        timeout: 60000,
+        ignoreDefaultArgs: ['--disable-extensions'],
+        handleSIGINT: false,
+        handleSIGTERM: false,
+        handleSIGHUP: false
+        },
+        webVersionCache: {
+          type: 'remote',
+          remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+        },
+        authTimeoutMs: 0,
+        qrMaxRetries: 0,
+        restartOnAuthFail: false,
+        takeoverOnConflict: false,
+        takeoverTimeoutMs: 0
+      });
+
+      // Переустанавливаем обработчики событий
+      this.setupEventHandlers();
+      
+      // Инициализируем клиент
       this.client.initialize();
       console.log('✅ WhatsApp клиент перезапущен');
     } catch (error) {
@@ -522,20 +651,29 @@ export class WhatsAppService {
 
 
   // Логирование состояния клиента
-  private logClientState(): void {
+  private async logClientState(): Promise<void> {
     try {
       if (!this.client) {
         console.log('📊 Клиент не инициализирован');
         return;
       }
 
-      const state = this.client.getState();
+      // getState() возвращает Promise, поэтому нужно await
+      let state = 'UNKNOWN';
+      try {
+        state = await this.client.getState();
+      } catch (error) {
+        state = 'ERROR';
+        console.log('📊 Ошибка получения состояния:', error instanceof Error ? error.message : 'Неизвестная ошибка');
+      }
+
       const info = this.client.info;
+      const hasPage = this.client.pupPage && !this.client.pupPage.isClosed();
       
       console.log('📊 Состояние WhatsApp клиента:', {
         state: state,
         isReady: info ? 'Да' : 'Нет',
-        hasPage: this.client.pupPage && !this.client.pupPage.isClosed() ? 'Да' : 'Нет',
+        hasPage: hasPage ? 'Да' : 'Нет',
         timestamp: new Date().toISOString()
       });
     } catch (error) {
@@ -552,8 +690,15 @@ export class WhatsAppService {
         return;
       }
 
-      // Проверяем состояние клиента
-      const state = this.client.getState();
+      // Проверяем состояние клиента (getState() возвращает Promise)
+      let state = 'UNKNOWN';
+      try {
+        state = await this.client.getState();
+      } catch (error) {
+        console.log('📊 Ошибка получения состояния для сохранения сессии:', error instanceof Error ? error.message : 'Неизвестная ошибка');
+        return;
+      }
+
       if (state !== 'CONNECTED' && state !== 'OPENING') {
         console.log(`📊 Клиент не подключен (состояние: ${state}), пропускаем сохранение сессии`);
         return;
@@ -573,6 +718,8 @@ export class WhatsAppService {
             window.localStorage.setItem('wwebjs_session_saved', Date.now().toString());
             window.localStorage.setItem('wwebjs_session_duration', '315360000000'); // 10 лет в миллисекундах
             window.localStorage.setItem('wwebjs_session_configured', 'true');
+            window.localStorage.setItem('wwebjs_session_keep_alive', 'true');
+            window.localStorage.setItem('wwebjs_session_auto_reconnect', 'true');
           }
         } catch (e) {
           console.log('Ошибка при сохранении в localStorage:', e);
@@ -580,11 +727,53 @@ export class WhatsAppService {
       });
       
       console.log('💾 Сессия принудительно сохранена');
+      
+      // Создаем архив для переноса на VPS (только если состояние CONNECTED)
+      if (state === 'CONNECTED') {
+        await this.createAuthArchive();
+      }
+      
     } catch (error) {
       // Логируем только если это не ошибка закрытой сессии
       if (error instanceof Error && !error.message.includes('Session closed') && !error.message.includes('Target closed')) {
         console.log('⚠️ Не удалось принудительно сохранить сессию:', error.message);
       }
+    }
+  }
+
+  // Создание архива авторизации для переноса на VPS
+  private async createAuthArchive(): Promise<void> {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+
+      const authDir = '.wwebjs_auth';
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const archiveName = `whatsapp_auth_${timestamp}.tar.gz`;
+
+      // Проверяем, существует ли папка авторизации
+      if (!fs.existsSync(authDir)) {
+        console.log('📁 Папка авторизации не найдена, пропускаем создание архива');
+        return;
+      }
+
+      // Создаем архив
+      console.log('📦 Создаем архив авторизации для переноса на VPS...');
+      await execAsync(`tar -czf ${archiveName} ${authDir}/`);
+      
+      // Проверяем размер архива
+      const stats = fs.statSync(archiveName);
+      const sizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+      
+      console.log(`✅ Архив авторизации создан: ${archiveName} (${sizeInMB} MB)`);
+      console.log(`📋 Для переноса на VPS скопируйте файл: ${archiveName}`);
+      console.log(`💡 На VPS выполните: tar -xzf ${archiveName}`);
+      
+    } catch (error) {
+      console.log('⚠️ Не удалось создать архив авторизации:', error instanceof Error ? error.message : 'Неизвестная ошибка');
     }
   }
 
@@ -597,13 +786,54 @@ export class WhatsAppService {
     console.log('✅ WhatsApp бот запущен и ожидает авторизации');
     
     // Периодически сохраняем сессию и проверяем состояние
-    setInterval(() => {
-      this.forceSaveSession();
-      this.logClientState();
-    }, 5 * 60 * 1000); // Каждые 5 минут
+    setInterval(async () => {
+      await this.forceSaveSession();
+      await this.logClientState();
+      await this.monitorSessionHealth();
+    }, 2 * 60 * 1000); // Каждые 2 минуты для более частого сохранения
 
   }
 
+
+  // Мониторинг здоровья сессии
+  private async monitorSessionHealth(): Promise<void> {
+    try {
+      if (!this.client) {
+        console.log('📊 Клиент не инициализирован для мониторинга');
+        return;
+      }
+
+      let state = 'UNKNOWN';
+      try {
+        state = await this.client.getState();
+      } catch (error) {
+        console.log('⚠️ Ошибка получения состояния для мониторинга:', error instanceof Error ? error.message : 'Неизвестная ошибка');
+        // Если не можем получить состояние, пытаемся перезапустить
+        setTimeout(() => {
+          this.restartClient();
+        }, 5000);
+        return;
+      }
+
+      // Проверяем различные состояния
+      if (state === 'CONNECTED') {
+        // Сессия в порядке, сбрасываем счетчик попыток
+        this.restartAttempts = 0;
+      } else if (state === 'UNPAIRED' || state === 'UNPAIRED_IDLE') {
+        console.log('⚠️ Обнаружено разлогинивание в мониторинге, перезапускаем...');
+        setTimeout(() => {
+          this.restartClient();
+        }, 3000);
+      } else if (state === 'TIMEOUT' || state === 'CONFLICT') {
+        console.log('⚠️ Обнаружена проблема с сессией в мониторинге, перезапускаем...');
+        setTimeout(() => {
+          this.restartClient();
+        }, 5000);
+      }
+    } catch (error) {
+      console.log('⚠️ Ошибка в мониторинге сессии:', error instanceof Error ? error.message : 'Неизвестная ошибка');
+    }
+  }
 
   // Очистка списка отправленных благодарственных сообщений (для тестирования)
   clearThanksHistory(): void {
