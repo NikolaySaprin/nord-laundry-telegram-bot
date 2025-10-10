@@ -392,8 +392,25 @@ export class WhatsAppService {
         // Удаляем ссылки на Telegram (https://t.me/...)
         cleanMessage = cleanMessage.replace(/https:\/\/t\.me\/[^\s\n]+/g, '');
         
+        // Удаляем упоминания пользователей (@username)
+        cleanMessage = cleanMessage.replace(/@[a-zA-Z0-9_]+/g, '');
+        
+        // Удаляем ID сообщений и другие мета-данные
+        cleanMessage = cleanMessage.replace(/\[[^\]]+\]/g, '');
+        cleanMessage = cleanMessage.replace(/\([^)]*message[^)]*\)/gi, '');
+        cleanMessage = cleanMessage.replace(/\([^)]*thread[^)]*\)/gi, '');
+        
         // Удаляем лишние переносы строк и пробелы
         cleanMessage = cleanMessage.replace(/\n\s*\n/g, '\n').trim();
+        cleanMessage = cleanMessage.replace(/\s+/g, ' ').trim();
+        
+        // Удаляем пустые строки в начале и конце
+        cleanMessage = cleanMessage.replace(/^\s*\n+|\n+\s*$/g, '');
+        
+        // Если сообщение стало пустым после очистки, используем стандартный текст
+        if (!cleanMessage || cleanMessage.length < 2) {
+          cleanMessage = 'Ответ от менеджера';
+        }
         
         // Создаем гиперссылку на Telegram аккаунт менеджера
         const telegramLink = `https://t.me/${reply.managerUsername.replace('@', '')}`;
@@ -401,9 +418,15 @@ export class WhatsAppService {
         await this.sendTextMessage(reply.targetUserId, managerMessage);
       }
 
-      // Отправляем медиа файлы, если есть
+      // Отправляем медиа файлы, если есть (исключаем аватарки и служебные изображения)
       if (reply.mediaUrls && reply.mediaUrls.length > 0) {
         for (const mediaUrl of reply.mediaUrls) {
+          // Пропускаем аватарки и служебные изображения
+          if (this.isServiceImage(mediaUrl)) {
+            console.log('⏭️ Пропускаем служебное изображение:', mediaUrl);
+            continue;
+          }
+          
           // Определяем тип медиа по URL или расширению
           const mediaType = this.getMediaTypeFromUrl(mediaUrl);
           await this.sendMediaMessage(reply.targetUserId, mediaUrl, mediaType);
@@ -431,6 +454,50 @@ export class WhatsAppService {
     } else {
       return 'document';
     }
+  }
+
+  // Проверка, является ли изображение служебным (аватарка, иконка и т.д.)
+  private isServiceImage(url: string): boolean {
+    const lowerUrl = url.toLowerCase();
+    
+    // Проверяем размеры файла в URL (обычно аватарки маленькие)
+    const sizeMatch = url.match(/[?&]size=(\d+)/);
+    if (sizeMatch) {
+      const size = parseInt(sizeMatch[1]);
+      if (size <= 200) { // Аватарки обычно меньше 200px
+        return true;
+      }
+    }
+    
+    // Проверяем паттерны URL, указывающие на аватарки
+    const avatarPatterns = [
+      'avatar',
+      'profile',
+      'user_photo',
+      'chat_photo',
+      'thumb',
+      'thumbnail',
+      'icon',
+      'emoji',
+      'sticker'
+    ];
+    
+    for (const pattern of avatarPatterns) {
+      if (lowerUrl.includes(pattern)) {
+        return true;
+      }
+    }
+    
+    // Проверяем размеры в параметрах URL
+    const dimensionMatch = url.match(/[?&](width|height)=(\d+)/);
+    if (dimensionMatch) {
+      const dimension = parseInt(dimensionMatch[2]);
+      if (dimension <= 200) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   private async restartClient(): Promise<void> {
