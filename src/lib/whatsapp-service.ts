@@ -776,8 +776,7 @@ export class WhatsAppService {
       const execAsync = promisify(exec);
 
       const authDir = '.wwebjs_auth';
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const archiveName = `whatsapp_auth_${timestamp}.tar.gz`;
+      const archiveName = 'whatsapp_auth_latest.tar.gz'; // Фиксированное имя файла
 
       // Проверяем, существует ли папка авторизации
       if (!fs.existsSync(authDir)) {
@@ -785,15 +784,21 @@ export class WhatsAppService {
         return;
       }
 
-      // Создаем архив
-      console.log('📦 Создаем архив авторизации для переноса на VPS...');
+      // Удаляем старый архив, если существует
+      if (fs.existsSync(archiveName)) {
+        fs.unlinkSync(archiveName);
+        console.log('🗑️ Удален старый архив авторизации');
+      }
+
+      // Создаем новый архив
+      console.log('📦 Обновляем архив авторизации для переноса на VPS...');
       await execAsync(`tar -czf ${archiveName} ${authDir}/`);
       
       // Проверяем размер архива
       const stats = fs.statSync(archiveName);
       const sizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
       
-      console.log(`✅ Архив авторизации создан: ${archiveName} (${sizeInMB} MB)`);
+      console.log(`✅ Архив авторизации обновлен: ${archiveName} (${sizeInMB} MB)`);
       console.log(`📋 Для переноса на VPS скопируйте файл: ${archiveName}`);
       console.log(`💡 На VPS выполните: tar -xzf ${archiveName}`);
       

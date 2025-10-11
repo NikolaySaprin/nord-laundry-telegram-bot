@@ -16,7 +16,9 @@ module.exports = {
       error_file: './logs/err.log',
       out_file: './logs/out.log',
       log_file: './logs/combined.log',
-      time: true
+      time: true,
+      // Хук для проверки сессии перед запуском
+      pre_start: './auto-restore-auth.sh check'
     },
     {
       name: 'webhook-server',
