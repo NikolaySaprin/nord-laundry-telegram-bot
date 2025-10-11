@@ -62,11 +62,12 @@ export class WhatsAppService {
         type: 'remote',
         remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
       },
-      authTimeoutMs: 0,
-      qrMaxRetries: 0,
-      restartOnAuthFail: false,
-      takeoverOnConflict: false,
-      takeoverTimeoutMs: 0
+      // Настройки для долгосрочной сессии
+      authTimeoutMs: 0, // Без ограничения времени авторизации
+      qrMaxRetries: 0, // Не ограничиваем количество попыток QR
+      restartOnAuthFail: false, // Не перезапускаем при ошибке авторизации
+      takeoverOnConflict: false, // Не захватываем конфликтующие сессии
+      takeoverTimeoutMs: 0, // Без ограничения времени захвата
     });
 
     this.setupEventHandlers();
@@ -740,18 +741,34 @@ export class WhatsAppService {
         try {
           // Сохраняем данные сессии в localStorage
           if (window.localStorage) {
-            window.localStorage.setItem('wwebjs_session_saved', Date.now().toString());
-            window.localStorage.setItem('wwebjs_session_duration', '315360000000'); // 10 лет в миллисекундах
+            const now = Date.now();
+            const tenYears = 315360000000; // 10 лет в миллисекундах
+            
+            window.localStorage.setItem('wwebjs_session_saved', now.toString());
+            window.localStorage.setItem('wwebjs_session_duration', tenYears.toString());
             window.localStorage.setItem('wwebjs_session_configured', 'true');
             window.localStorage.setItem('wwebjs_session_keep_alive', 'true');
             window.localStorage.setItem('wwebjs_session_auto_reconnect', 'true');
+            window.localStorage.setItem('wwebjs_session_expires', (now + tenYears).toString());
+            window.localStorage.setItem('wwebjs_session_persistent', 'true');
+            
+            // Дополнительные настройки для долгосрочной сессии
+            window.localStorage.setItem('wwebjs_session_never_expire', 'true');
+            window.localStorage.setItem('wwebjs_session_auto_refresh', 'true');
+            window.localStorage.setItem('wwebjs_session_backup_enabled', 'true');
+          }
+          
+          // Также сохраняем в sessionStorage для дополнительной надежности
+          if (window.sessionStorage) {
+            window.sessionStorage.setItem('wwebjs_session_active', 'true');
+            window.sessionStorage.setItem('wwebjs_session_timestamp', Date.now().toString());
           }
         } catch (e) {
           console.log('Ошибка при сохранении в localStorage:', e);
         }
       });
       
-      console.log('💾 Сессия принудительно сохранена');
+      console.log('💾 Сессия принудительно сохранена с настройками на 10 лет');
       
       // Создаем архив для переноса на VPS (только если состояние CONNECTED)
       if (state === 'CONNECTED') {
@@ -849,6 +866,22 @@ export class WhatsAppService {
       if (state === 'CONNECTED') {
         // Сессия в порядке, сбрасываем счетчик попыток
         this.restartAttempts = 0;
+        
+        // Дополнительно проверяем, что сессия действительно активна
+        try {
+          if (this.client.pupPage && !this.client.pupPage.isClosed()) {
+            const sessionActive = await this.client.pupPage.evaluate(() => {
+              return window.localStorage.getItem('wwebjs_session_active') === 'true';
+            });
+            
+            if (!sessionActive) {
+              console.log('⚠️ Сессия не активна в localStorage, принудительно сохраняем...');
+              await this.forceSaveSession();
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ Ошибка проверки активности сессии:', error instanceof Error ? error.message : 'Неизвестная ошибка');
+        }
       } else if (state === 'UNPAIRED' || state === 'UNPAIRED_IDLE') {
         console.log('⚠️ Обнаружено разлогинивание в мониторинге, перезапускаем...');
         setTimeout(() => {
@@ -859,6 +892,10 @@ export class WhatsAppService {
         setTimeout(() => {
           this.restartClient();
         }, 5000);
+      } else if (state === 'OPENING') {
+        console.log('📱 Сессия открывается, ожидаем...');
+      } else {
+        console.log(`📊 Неизвестное состояние сессии: ${state}`);
       }
     } catch (error) {
       console.log('⚠️ Ошибка в мониторинге сессии:', error instanceof Error ? error.message : 'Неизвестная ошибка');

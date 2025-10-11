@@ -70,3 +70,43 @@ Thumbs.db
 
 # WhatsApp session data
 .wwebjs_auth/
+whatsapp_auth_*.tar.gz
+whatsapp_auth_latest.tar.gz
+
+# Documentation (optional - can be removed for production)
+*.md
+!README.md
+
+# Test files
+test-*.js
+test-*.sh
+
+# Deployment scripts (optional)
+deploy.sh
+auto-upload.sh
+upload-to-vps.sh
+vps-diagnostic.sh
+webhook-deploy.sh
+setup-auto-deploy.sh
+setup-long-session.sh
+setup-auto-restore.sh
+auto-restore-auth.sh
+cleanup-old-archives.sh
+create-auth-archive.sh
+restore-auth.sh
+restore-auth-on-vps.sh
+backup-auth.sh
+check-auth-status.sh
+check-session.sh
+clear-session.sh
+clear-thanks-history.sh
+clear-welcome-history.sh
+monitor-session.sh
+test-chat-open.sh
+test-thanks-messages.sh
+test-welcome-messages.sh
+test-long-session.sh
+whatsapp-auth-restore.service
+
+# Service files
+ecosystem.config.cjs

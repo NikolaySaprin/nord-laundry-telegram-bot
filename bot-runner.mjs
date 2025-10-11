@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { startSharedBot, stopSharedBot } from './shared-bot.js';
+import { startSharedBot, stopSharedBot } from './shared-bot.mjs';
 
 // Загружаем переменные окружения
 dotenv.config();

@@ -1,0 +1,37 @@
+[Unit]
+Description=WhatsApp Auth Recovery Service
+Documentation=https://github.com/nord-laundry-bot
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/nord-laundry-bot
+ExecStart=/opt/nord-laundry-bot/auto-auth-recovery.sh monitor
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=whatsapp-auth-recovery
+
+# Ограничения ресурсов
+LimitNOFILE=65536
+LimitNPROC=32768
+
+# Безопасность
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/nord-laundry-bot
+ReadWritePaths=/var/log
+
+# Переменные окружения
+Environment=NODE_ENV=production
+Environment=WHATSAPP_AUTH_RECOVERY=true
+
+[Install]
+WantedBy=multi-user.target

@@ -6,7 +6,7 @@ const PORT = 3001;
 const SECRET = process.env.WEBHOOK_SECRET || 'your-secret-key'; // Замените на свой секретный ключ
 
 // Импортируем общий экземпляр бота
-const { handleApplication } = require('./shared-bot.js');
+const { handleApplication } = require('./shared-bot.cjs');
 
 const server = http.createServer((req, res) => {
     // Настройка CORS для веб-запросов

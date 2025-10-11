@@ -94,7 +94,18 @@ export class ApplicationBot {
         userName: application.name
       });
 
-      const userIdentifier = application.whatsappUserId || application.userIdentifierTelegram || `website_${application.phone}`;
+      // Создаем уникальный идентификатор для каждой заявки с сайта
+      let userIdentifier: string;
+      if (application.source === 'whatsapp') {
+        userIdentifier = application.whatsappUserId!;
+      } else if (application.source === 'telegram_direct') {
+        userIdentifier = application.userIdentifierTelegram!;
+      } else {
+        // Для заявок с сайта создаем уникальный идентификатор на основе времени и телефона
+        const timestamp = Date.now();
+        userIdentifier = `website_${application.phone}_${timestamp}`;
+      }
+      
       const platform = application.source === 'whatsapp' ? 'whatsapp' : 'telegram';
       let threadId = this.activeThreads.get(userIdentifier);
 
@@ -104,7 +115,11 @@ export class ApplicationBot {
         existingThreadId: threadId
       });
       
-      if (!threadId) {
+      // Для заявок с сайта всегда создаем новую тему
+      // Для WhatsApp и Telegram ищем существующую тему
+      const shouldCreateNewThread = !threadId || application.source.includes('website') || application.source.includes('form');
+      
+      if (shouldCreateNewThread) {
         // Создаем новую тему форума
         const topicName = this.generateTopicName(application);
         console.log('🆕 Создаем новую тему форума:', topicName);
