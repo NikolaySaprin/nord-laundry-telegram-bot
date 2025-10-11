@@ -5,32 +5,8 @@ const path = require('path');
 const PORT = 3001;
 const SECRET = process.env.WEBHOOK_SECRET || 'your-secret-key'; // Замените на свой секретный ключ
 
-// Импортируем ApplicationBot для обработки заявок с сайта
-let ApplicationBot;
-try {
-    const { ApplicationBot: BotClass } = require('./dist/lib/telegram-bot.js');
-    ApplicationBot = BotClass;
-} catch (error) {
-    console.error('❌ Не удалось загрузить ApplicationBot:', error);
-}
-
-// Создаем экземпляр бота для обработки заявок с сайта
-let botInstance = null;
-if (ApplicationBot) {
-    try {
-        const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-        const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
-        
-        if (TELEGRAM_BOT_TOKEN && TELEGRAM_GROUP_CHAT_ID) {
-            botInstance = new ApplicationBot(TELEGRAM_BOT_TOKEN, TELEGRAM_GROUP_CHAT_ID, false);
-            console.log('✅ ApplicationBot инициализирован для обработки заявок с сайта');
-        } else {
-            console.log('⚠️ Переменные окружения для Telegram бота не найдены');
-        }
-    } catch (error) {
-        console.error('❌ Ошибка инициализации ApplicationBot:', error);
-    }
-}
+// Импортируем общий экземпляр бота
+const { handleApplication } = require('./shared-bot.js');
 
 const server = http.createServer((req, res) => {
     // Настройка CORS для веб-запросов
@@ -58,24 +34,22 @@ const server = http.createServer((req, res) => {
                 const applicationData = JSON.parse(body);
                 console.log('📋 Получена заявка с сайта:', applicationData);
                 
-                if (!botInstance) {
-                    console.error('❌ ApplicationBot не инициализирован');
+                // Обрабатываем заявку через общий экземпляр бота
+                const success = await handleApplication(applicationData);
+                
+                if (success) {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ 
+                        status: 'success', 
+                        message: 'Application processed' 
+                    }));
+                } else {
                     res.writeHead(500, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ 
                         status: 'error', 
                         message: 'Bot not initialized' 
                     }));
-                    return;
                 }
-                
-                // Обрабатываем заявку через бота
-                await botInstance.handleNewApplication(applicationData);
-                
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ 
-                    status: 'success', 
-                    message: 'Application processed' 
-                }));
                 
             } catch (error) {
                 console.error('❌ Ошибка обработки заявки с сайта:', error);

@@ -280,6 +280,31 @@ export class WhatsAppService {
         return;
       }
 
+      // Игнорируем служебные сообщения WhatsApp
+      const serviceMessageTypes = [
+        'e2e_notification',
+        'notification_template', 
+        'call_log',
+        'system',
+        'protocol',
+        'presence',
+        'read_receipt',
+        'revoked',
+        'ephemeral',
+        'notification'
+      ];
+
+      if (serviceMessageTypes.includes(message.type)) {
+        console.log(`⏭️ Пропускаем служебное сообщение типа: ${message.type}`);
+        return;
+      }
+
+      // Игнорируем пустые сообщения (кроме медиа)
+      if (!message.body && !message.hasMedia) {
+        console.log('⏭️ Пропускаем пустое сообщение');
+        return;
+      }
+
       // Получаем информацию о пользователе
       const contact = await message.getContact();
       const userPhone = contact.number;

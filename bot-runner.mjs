@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { ApplicationBot } from './dist/lib/telegram-bot.js';
+import { startSharedBot, stopSharedBot } from './shared-bot.js';
 
 // Загружаем переменные окружения
 dotenv.config();
@@ -26,29 +26,22 @@ if (ENABLE_WHATSAPP) {
   console.log('⚠️ WhatsApp отключен - будет работать только Telegram');
 }
 
-// Создаем экземпляр бота
-const bot = new ApplicationBot(
-  TELEGRAM_BOT_TOKEN,
-  TELEGRAM_GROUP_CHAT_ID,
-  ENABLE_WHATSAPP
-);
-
 // Обработка сигналов завершения
 process.on('SIGINT', () => {
   console.log('\n🛑 Получен сигнал SIGINT. Завершение работы...');
-  bot.stop();
+  stopSharedBot();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   console.log('\n🛑 Получен сигнал SIGTERM. Завершение работы...');
-  bot.stop();
+  stopSharedBot();
   process.exit(0);
 });
 
 // Запускаем бота
 try {
-  bot.start();
+  startSharedBot();
   console.log('✅ Объединенный бот запущен успешно!');
 } catch (error) {
   console.error('❌ Ошибка запуска бота:', error);
