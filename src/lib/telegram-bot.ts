@@ -205,7 +205,11 @@ export class ApplicationBot {
     if (application.source === 'telegram_direct') {
       message = `💬 Новая заявка ${sourceLabel}:\n\n👤 Пользователь: ${application.userNameTelegram}${application.userUsernameTelegram ? ` (@${application.userUsernameTelegram})` : ''}\n📝 Вопрос: ${application.userMessage}`;
     } else if (application.source === 'whatsapp') {
-      message = `💬 Новая заявка ${sourceLabel}:\n\n👤 Пользователь: ${application.whatsappUserName}\n📞 Телефон: ${application.whatsappUserPhone}\n📝 Вопрос: ${application.userMessage}`;
+      message = `💬 Новая заявка ${sourceLabel}:
+
+👤 Пользователь: ${application.whatsappUserName}
+📞 Телефон: ${application.whatsappUserPhone}
+📝 Вопрос: ${application.userMessage}`;
     } else {
       message = `📋 Новая заявка ${sourceLabel}:\n\n👤 Имя: ${application.name}\n📞 Телефон: ${application.phone}`;
     }
@@ -228,13 +232,13 @@ export class ApplicationBot {
       message += `\n${mediaLabel} Медиа: ${application.mediaUrls.length} файл(ов)`;
     }
     
-    message += `\n⏰ Время: ${new Date().toLocaleString('ru-RU')}\n\nСтатус: ⏳ Ожидает обработки`;
+    message += `\n⏰ Время: ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}\n\nСтатус: ⏳ Ожидает обработки`;
     
     return message;
   }
 
   private formatNewMessage(application: Application): string {
-    return `📝 Новое сообщение в заявке:\n\n${application.userMessage || 'Без текста'}\n⏰ Время: ${new Date().toLocaleString('ru-RU')}`;
+    return `📝 Новое сообщение в заявке:\n\n${application.userMessage || 'Без текста'}\n⏰ Время: ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}`;
   }
 
   // Обработка ответов менеджеров в группе
@@ -307,8 +311,9 @@ export class ApplicationBot {
 
       // Отправляем ответ в зависимости от платформы
       if (userData.platform === 'telegram' && userData.userId) {
-        // Для Telegram отправляем только ответ менеджера без дополнительных сообщений
-        await this.sendToUser(parseInt(userData.userId), messageText);
+        // Для Telegram отправляем ответ с подписью менеджера
+        const messageWithSignature = `${messageText}\n\n_От: ${managerName}_`;
+        await this.sendToUser(parseInt(userData.userId), messageWithSignature);
       } else if (userData.platform === 'whatsapp' && this.whatsappService) {
         await this.whatsappService.sendManagerReply(managerReply);
       }

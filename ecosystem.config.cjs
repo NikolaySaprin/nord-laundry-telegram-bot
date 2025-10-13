@@ -1,54 +1,47 @@
+// PM2 конфигурация для Nord Laundry Bot
+// Использование: pm2 start ecosystem.config.cjs
+
 module.exports = {
   apps: [
+    // Основной бот (Telegram + WhatsApp)
     {
       name: 'nord-laundry-bot',
-      script: 'bot-runner.mjs',
+      script: './bot-runner.mjs',
       instances: 1,
       autorestart: true,
       watch: false,
       max_memory_restart: '1G',
-      min_uptime: '10s',
-      max_restarts: 5,
-      restart_delay: 4000,
       env: {
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        ENABLE_WHATSAPP: 'true'
       },
-      error_file: './logs/err.log',
-      out_file: './logs/out.log',
-      log_file: './logs/combined.log',
-      time: true,
-      // Хуки для проверки и восстановления сессии
-      pre_start: './auto-auth-recovery.sh check',
-      post_start: './auto-auth-recovery.sh archive'
+      error_file: './logs/bot-error.log',
+      out_file: './logs/bot-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      restart_delay: 3000,
+      max_restarts: 10,
+      min_uptime: '10s'
     },
+    
+    // Webhook сервер для заявок с сайта (опционально)
     {
-      name: 'webhook-server',
-      script: 'webhook-server.js',
+      name: 'nord-laundry-webhook',
+      script: './webhook-server.js',
       instances: 1,
       autorestart: true,
       watch: false,
-      max_memory_restart: '500M',
+      max_memory_restart: '512M',
       env: {
         NODE_ENV: 'production',
-        WEBHOOK_SECRET: 'your-secret-key'  // Замените на свой секретный ключ
+        PORT: 3001,
+        WEBHOOK_SECRET: 'your-secret-key-here'
       },
-      error_file: './logs/webhook-err.log',
+      error_file: './logs/webhook-error.log',
       out_file: './logs/webhook-out.log',
-      log_file: './logs/webhook-combined.log',
-      time: true
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      restart_delay: 1000
     }
-  ],
-  // Автоматическое развертывание
-  deploy: {
-    production: {
-      user: 'root',
-      host: 'YOUR_VPS_IP',  // Замените на IP вашего VPS
-      ref: 'origin/main',
-      repo: 'https://github.com/your-username/nord-laundry-bot.git',  // Замените на ваш репозиторий
-      path: '/var/www/html/nord-laundry-telegram-bot',
-      'pre-deploy-local': '',
-      'post-deploy': 'npm install --production && npm run build && pm2 reload ecosystem.config.cjs --env production',
-      'pre-setup': ''
-    }
-  }
+  ]
 };

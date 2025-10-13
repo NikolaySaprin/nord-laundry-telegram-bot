@@ -71,7 +71,7 @@ Thumbs.db
 # WhatsApp session data
 .wwebjs_auth/
 whatsapp_auth_*.tar.gz
-whatsapp_auth_latest.tar.gz
+!whatsapp_auth_latest.tar.gz  # Разрешаем только последнюю версию архива
 
 # Documentation (optional - can be removed for production)
 *.md
@@ -108,5 +108,9 @@ test-welcome-messages.sh
 test-long-session.sh
 whatsapp-auth-restore.service
 
-# Service files
-ecosystem.config.cjs
+# Cleanup scripts
+cleanup-git.sh
+cleanup-project.sh
+create-minimal-version.sh
+auto-auth-recovery.sh
+setup-auth-recovery.sh
