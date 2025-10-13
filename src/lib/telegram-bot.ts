@@ -94,30 +94,42 @@ export class ApplicationBot {
         userName: application.name
       });
 
-      // Создаем уникальный идентификатор для каждой заявки с сайта
+      // Создаем уникальный идентификатор для каждой заявки
       let userIdentifier: string;
+      let platform: 'whatsapp' | 'telegram';
+      let shouldCreateNewThread: boolean;
+      
       if (application.source === 'whatsapp') {
+        // WhatsApp - используем номер телефона как идентификатор
         userIdentifier = application.whatsappUserId!;
+        platform = 'whatsapp';
+        // Для WhatsApp создаем тему только если её нет
+        shouldCreateNewThread = !this.activeThreads.has(userIdentifier);
       } else if (application.source === 'telegram_direct') {
+        // Telegram - используем telegram ID как идентификатор
         userIdentifier = application.userIdentifierTelegram!;
+        platform = 'telegram';
+        // Для Telegram создаем тему только если её нет
+        shouldCreateNewThread = !this.activeThreads.has(userIdentifier);
       } else {
-        // Для заявок с сайта создаем уникальный идентификатор на основе времени и телефона
+        // Заявки с сайта (website_form, contact_form, bottom_form, services_form, modal_form)
+        // ВСЕГДА создаем новую тему для каждой заявки с сайта
         const timestamp = Date.now();
-        userIdentifier = `website_${application.phone}_${timestamp}`;
+        userIdentifier = `website_${application.source}_${application.phone}_${timestamp}`;
+        platform = 'telegram';
+        shouldCreateNewThread = true; // Всегда создаем новую тему для заявок с сайта
       }
       
-      const platform = application.source === 'whatsapp' ? 'whatsapp' : 'telegram';
       let threadId = this.activeThreads.get(userIdentifier);
 
-      console.log('🔍 Ищем существующую тему для пользователя:', {
+      console.log('🔍 Анализ заявки:', {
+        source: application.source,
         userIdentifier,
         platform,
-        existingThreadId: threadId
+        existingThreadId: threadId,
+        shouldCreateNewThread,
+        isWebsiteForm: !['whatsapp', 'telegram_direct'].includes(application.source)
       });
-      
-      // Для заявок с сайта всегда создаем новую тему
-      // Для WhatsApp и Telegram ищем существующую тему
-      const shouldCreateNewThread = !threadId || application.source.includes('website') || application.source.includes('form');
       
       if (shouldCreateNewThread) {
         // Создаем новую тему форума
@@ -200,6 +212,17 @@ export class ApplicationBot {
     
     const sourceLabel = sourceLabels[application.source] || 'с сайта';
     
+    // Форматируем время в московском часовом поясе (+3 UTC)
+    const moscowTime = new Date().toLocaleString('ru-RU', { 
+      timeZone: 'Europe/Moscow',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    
     let message: string;
     
     if (application.source === 'telegram_direct') {
@@ -232,13 +255,24 @@ export class ApplicationBot {
       message += `\n${mediaLabel} Медиа: ${application.mediaUrls.length} файл(ов)`;
     }
     
-    message += `\n⏰ Время: ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}\n\nСтатус: ⏳ Ожидает обработки`;
+    message += `\n⏰ Время: ${moscowTime} (МСК)\n\nСтатус: ⏳ Ожидает обработки`;
     
     return message;
   }
 
   private formatNewMessage(application: Application): string {
-    return `📝 Новое сообщение в заявке:\n\n${application.userMessage || 'Без текста'}\n⏰ Время: ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}`;
+    // Форматируем время в московском часовом поясе (+3 UTC)
+    const moscowTime = new Date().toLocaleString('ru-RU', { 
+      timeZone: 'Europe/Moscow',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    
+    return `📝 Новое сообщение в заявке:\n\n${application.userMessage || 'Без текста'}\n⏰ Время: ${moscowTime} (МСК)`;
   }
 
   // Обработка ответов менеджеров в группе
