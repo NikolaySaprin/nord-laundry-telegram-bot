@@ -18,6 +18,8 @@ export class WhatsAppService {
       }),
       puppeteer: {
         headless: true,
+        // Используем системный Chromium на VPS
+        executablePath: process.env.NODE_ENV === 'production' ? '/usr/bin/chromium-browser' : undefined,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -25,6 +27,7 @@ export class WhatsAppService {
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
           '--no-zygote',
+          '--single-process', // Важно для VPS
           '--disable-gpu',
           '--disable-web-security',
           '--disable-features=VizDisplayCompositor',
@@ -50,6 +53,11 @@ export class WhatsAppService {
           '--disable-background-networking',
           '--disable-component-extensions-with-background-pages',
           '--disable-ipc-flooding-protection',
+          '--disable-client-side-phishing-detection',
+          '--disable-sync',
+          '--disable-default-apps',
+          '--disable-extensions-file-access-check',
+          '--disable-component-extensions-with-background-pages',
           '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         ],
         timeout: 60000,
