@@ -2,7 +2,11 @@ import http from 'http';
 import { exec } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 import { handleApplication } from './shared-bot.mjs';
+
+// Загружаем переменные окружения из .env файла
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,8 +34,20 @@ const server = http.createServer((req, res) => {
         
         req.on('end', async () => {
             try {
-                const applicationData = JSON.parse(body);
-                console.log('📋 Получена заявка с сайта:', applicationData);
+                const rawData = JSON.parse(body);
+                console.log('📋 Получена заявка с сайта:', rawData);
+                
+                // Нормализуем данные заявки и добавляем обязательные поля
+                const applicationData = {
+                    name: rawData.name || 'Не указано',
+                    phone: rawData.phone || 'Не указан',
+                    sphere: rawData.sphere || '',
+                    source: rawData.source || 'modal_form',
+                    messageType: 'text', // По умолчанию текстовое сообщение для заявок с сайта
+                    userMessage: rawData.message || rawData.comment || `Новая заявка с формы: ${rawData.source || 'modal_form'}`,
+                };
+                
+                console.log('📝 Нормализованная заявка:', applicationData);
                 
                 const success = await handleApplication(applicationData);
                 
