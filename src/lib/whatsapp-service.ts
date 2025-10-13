@@ -18,7 +18,7 @@ export class WhatsAppService {
       }),
       puppeteer: {
         headless: true,
-        // Используем системный Chromium на VPS
+
         executablePath: process.env.NODE_ENV === 'production' ? '/usr/bin/chromium-browser' : undefined,
         args: [
           '--no-sandbox',
@@ -27,7 +27,7 @@ export class WhatsAppService {
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
           '--no-zygote',
-          '--single-process', // Важно для VPS
+          '--single-process',
           '--disable-gpu',
           '--disable-web-security',
           '--disable-features=VizDisplayCompositor',
@@ -70,24 +70,24 @@ export class WhatsAppService {
         type: 'remote',
         remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
       },
-      // Настройки для долгосрочной сессии (10 лет)
-      authTimeoutMs: 0, // Без ограничения времени авторизации
-      qrMaxRetries: 0, // Не ограничиваем количество попыток QR
-      restartOnAuthFail: false, // Не перезапускаем при ошибке авторизации
-      takeoverOnConflict: false, // Не захватываем конфликтующие сессии
-      takeoverTimeoutMs: 0 // Без ограничения времени захвата
+
+      authTimeoutMs: 0,
+      qrMaxRetries: 0,
+      restartOnAuthFail: false,
+      takeoverOnConflict: false,
+      takeoverTimeoutMs: 0
     });
 
     this.setupEventHandlers();
   }
 
   private setupEventHandlers(): void {
-    // Проверяем существующую сессию перед показом QR кода
+
     this.client.on('loading_screen', (percent: number, message: string) => {
       console.log(`📱 Загрузка WhatsApp сессии: ${percent}% - ${message}`);
     });
 
-    // Генерация QR кода только если нет сохраненной сессии
+
     this.client.on('qr', (qr: string) => {
       console.log('🔐 QR код для авторизации WhatsApp:');
       console.log('⚠️  ВНИМАНИЕ: Это означает, что сохраненная сессия недействительна');
@@ -98,14 +98,14 @@ export class WhatsAppService {
       console.log('   4. Отсканируйте QR код ниже:');
       console.log('');
       
-      // Пытаемся отобразить QR код в терминале
+
       try {
         qrcode.generate(qr, { small: true });
       } catch (error) {
         console.log('⚠️ Не удалось отобразить QR код в терминале');
       }
       
-      // Альтернативный способ - ссылка на генератор QR кода
+
       console.log('');
       console.log('📋 Откройте эту ссылку в браузере для получения QR кода:');
       console.log(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`);
@@ -113,23 +113,23 @@ export class WhatsAppService {
       console.log('⏳ Ожидание авторизации...');
     });
 
-    // Обработка входящих сообщений
+
     this.client.on('message', async (message: Message) => {
       console.log('🔔 Получено событие message от WhatsApp клиента');
       await this.handleIncomingMessage(message);
     });
 
-    // Обработка ошибок
+
     this.client.on('auth_failure', (msg: string) => {
       console.error('❌ Ошибка авторизации WhatsApp:', msg);
       console.log('💡 Возможно, нужно отсканировать QR код заново');
     });
 
-    // Обработка отключения
+
     this.client.on('disconnected', (reason: string) => {
       console.log('📱 WhatsApp клиент отключен:', reason);
       
-      // Перезапускаем при любом отключении, кроме LOGOUT
+
       if (reason !== 'LOGOUT') {
         console.log('🔄 Перезапускаем WhatsApp клиент через 3 секунды...');
         setTimeout(() => {
@@ -140,19 +140,19 @@ export class WhatsAppService {
       }
     });
 
-    // Обработка ошибок Puppeteer
+
     this.client.on('change_state', (state: string) => {
       console.log('📱 WhatsApp состояние изменилось:', state);
       this.logClientState();
       
-      // Если состояние изменилось на CONNECTED, принудительно сохраняем сессию
+
       if (state === 'CONNECTED') {
         setTimeout(() => {
           this.forceSaveSession();
         }, 1000);
       }
       
-      // Если состояние изменилось на UNPAIRED, пытаемся восстановить
+
       if (state === 'UNPAIRED' || state === 'UNPAIRED_IDLE') {
         console.log('⚠️ Обнаружено разлогинивание, пытаемся восстановить сессию...');
         setTimeout(() => {
@@ -161,79 +161,79 @@ export class WhatsAppService {
       }
     });
 
-    // Обработка ошибок выполнения
+
     this.client.on('remote_session_saved', () => {
       console.log('💾 Сессия WhatsApp сохранена');
     });
 
-    // Обработка сохранения сессии
+
     this.client.on('authenticated', () => {
       console.log('✅ WhatsApp клиент авторизован');
       console.log('🔒 Сессия настроена на 10 лет без перелогина');
       this.logClientState();
       
-      // Принудительно сохраняем сессию после авторизации
+
       setTimeout(() => {
         this.forceSaveSession();
       }, 1000);
       
-      // Создаем архив для переноса на VPS
+
       setTimeout(() => {
         this.createAuthArchive();
       }, 3000);
     });
 
-    // Обработка загрузки сессии
+
     this.client.on('auth_failure', (msg: string) => {
       console.error('❌ Ошибка авторизации WhatsApp:', msg);
       console.log('💡 Возможно, нужно отсканировать QR код заново');
     });
 
-    // Предотвращение разлогинивания
+
     this.client.on('change_state', (state: string) => {
       console.log('📱 WhatsApp состояние:', state);
       if (state === 'UNPAIRED' || state === 'UNPAIRED_IDLE') {
         console.log('⚠️ Обнаружено разлогинивание, пытаемся восстановить сессию...');
-        // Не перезапускаем автоматически, только логируем
+
       }
     });
 
-    // Обработка конфликтов сессий
+
     this.client.on('remote_session_saved', () => {
       console.log('💾 Сессия WhatsApp сохранена на диск');
       console.log('🔒 Сессия будет сохранена на 10 лет');
     });
 
-    // Обработка критических ошибок
+
     this.client.on('qr', (qr: string) => {
       console.log('🔐 QR код обновлен');
     });
 
 
-    // Попытка отправить приветственное сообщение при подключении
+
     this.client.on('ready', async () => {
       console.log('✅ WhatsApp бот готов к работе!');
       this.logClientState();
       this.restartAttempts = 0;
       
-      // Проверяем, что обработчик заявок установлен
+
       if (!this.onNewApplication) {
         console.log('⚠️ Обработчик заявок не установлен после готовности клиента');
       } else {
         console.log('✅ Обработчик заявок активен и готов к работе');
       }
       
-      // Принудительно сохраняем сессию после успешной авторизации
+
       setTimeout(() => {
         this.forceSaveSession();
       }, 2000);
       
-      // Создаем архив для переноса на VPS
+
       setTimeout(() => {
         this.createAuthArchive();
       }, 5000);
 
-      // Логируем количество найденных чатов, но не отправляем приветствия
+
       try {
         const chats = await this.client.getChats();
         console.log(`📊 Найдено ${chats.length} чатов`);
@@ -243,13 +243,13 @@ export class WhatsAppService {
       }
     });
 
-    // Глобальная обработка ошибок (только для критических ошибок)
+
     process.on('uncaughtException', (error) => {
       if (error.message.includes('Protocol error') || error.message.includes('Execution context was destroyed') || error.message.includes('Session closed')) {
         console.log('⚠️ Обнаружена критическая ошибка Puppeteer, пытаемся восстановить сессию...');
         console.log('💡 Ошибка:', error.message);
         
-        // Пытаемся перезапустить клиент при критических ошибках
+
         setTimeout(() => {
           this.restartClient();
         }, 10000);
@@ -263,7 +263,7 @@ export class WhatsAppService {
           console.log('⚠️ Обнаружено необработанное отклонение Promise (Puppeteer), пытаемся восстановить сессию...');
           console.log('💡 Ошибка:', error.message);
           
-          // Пытаемся перезапустить клиент при критических ошибках
+
           setTimeout(() => {
             this.restartClient();
           }, 10000);
@@ -272,14 +272,14 @@ export class WhatsAppService {
     });
   }
 
-  // Установка обработчика новых заявок
+
   setApplicationHandler(handler: (application: Application) => Promise<void>): void {
     console.log('🔧 Устанавливаем обработчик заявок в WhatsApp сервисе');
     this.onNewApplication = handler;
     console.log('✅ Обработчик заявок установлен:', !!this.onNewApplication);
   }
 
-  // Обработка входящих сообщений
+
   private async handleIncomingMessage(message: Message): Promise<void> {
     try {
       console.log('📨 Обрабатываем входящее сообщение WhatsApp:', {
@@ -290,19 +290,19 @@ export class WhatsAppService {
         hasMedia: message.hasMedia
       });
 
-      // Проверяем состояние клиента
+
       if (!this.client) {
         console.log('❌ WhatsApp клиент не инициализирован');
         return;
       }
 
-      // Игнорируем сообщения из групп и статусы
+
       if (message.from.includes('@g.us') || message.isStatus) {
         console.log('⏭️ Пропускаем сообщение (группа или статус)');
         return;
       }
 
-      // Игнорируем служебные сообщения WhatsApp
+
       const serviceMessageTypes = [
         'e2e_notification',
         'notification_template', 
@@ -321,13 +321,13 @@ export class WhatsAppService {
         return;
       }
 
-      // Игнорируем пустые сообщения (кроме медиа)
+
       if (!message.body && !message.hasMedia) {
         console.log('⏭️ Пропускаем пустое сообщение');
         return;
       }
 
-      // Получаем информацию о пользователе
+
       const contact = await message.getContact();
       const userPhone = contact.number;
       const userName = contact.name || contact.pushname || 'Пользователь';
@@ -339,9 +339,9 @@ export class WhatsAppService {
         userMessage
       });
 
-      // Приветствие убрано - отправляем только благодарность после обработки заявки
 
-      // Определяем тип сообщения и медиа
+
+
       let messageType: Application['messageType'] = 'text';
       let mediaUrls: string[] = [];
 
@@ -354,7 +354,7 @@ export class WhatsAppService {
               mediaUrls.push(mediaUrl);
             }
 
-            // Определяем тип медиа
+
             if (message.type === 'image') {
               messageType = 'image';
             } else if (message.type === 'video') {
@@ -370,7 +370,7 @@ export class WhatsAppService {
         }
       }
 
-      // Создаем заявку
+
       const application: Application = {
         source: 'whatsapp',
         whatsappUserId: userPhone,
@@ -383,7 +383,7 @@ export class WhatsAppService {
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
       };
 
-      // Пересылаем заявку в Telegram
+
       if (this.onNewApplication) {
         console.log('📤 Пересылаем заявку в Telegram...');
         console.log('✅ Обработчик заявок найден, отправляем заявку');
@@ -400,7 +400,7 @@ export class WhatsAppService {
         console.log('🔍 Проверяем состояние onNewApplication:', this.onNewApplication);
       }
 
-      // Отправляем благодарственное сообщение только при первом сообщении
+
       if (!this.thanksMessageSent.has(userPhone)) {
         const thanksText = `Спасибо за заявку!\nМы свяжемся с Вами в ближайшее время`;
         await message.reply(thanksText);
@@ -412,7 +412,7 @@ export class WhatsAppService {
     } catch (error) {
       console.error('Ошибка обработки входящего сообщения WhatsApp:', error);
       
-      // Логируем ошибку, но не перезапускаем автоматически
+
       if (error instanceof Error && 
           (error.message.includes('Protocol error') || 
            error.message.includes('Execution context was destroyed') ||
@@ -423,17 +423,17 @@ export class WhatsAppService {
     }
   }
 
-  // Сохранение медиа файла
+
   private async saveMediaFile(media: any, userPhone: string): Promise<string | null> {
     try {
       const timestamp = Date.now();
       const extension = media.mimetype.split('/')[1] || 'bin';
       const filename = `whatsapp_${userPhone}_${timestamp}.${extension}`;
       
-      // Здесь можно добавить сохранение в файловую систему или облачное хранилище
+
       console.log(`Медиа файл сохранен: ${filename}`);
       
-      // Возвращаем временный URL (замените на реальный URL файла)
+
       return `https://your-server.com/media/${filename}`;
     } catch (error) {
       console.error('Ошибка сохранения медиа файла:', error);
@@ -441,7 +441,7 @@ export class WhatsAppService {
     }
   }
 
-  // Отправка текстового сообщения
+
   async sendTextMessage(to: string, message: string): Promise<boolean> {
     try {
       const chatId = `${to}@c.us`;
@@ -450,7 +450,7 @@ export class WhatsAppService {
     } catch (error) {
       console.error('Ошибка отправки сообщения пользователю WhatsApp:', error);
       
-      // Логируем ошибку, но не перезапускаем автоматически
+
       if (error instanceof Error && 
           (error.message.includes('Protocol error') || 
            error.message.includes('Execution context was destroyed') ||
@@ -463,7 +463,7 @@ export class WhatsAppService {
     }
   }
 
-  // Отправка медиа сообщения
+
   async sendMediaMessage(to: string, mediaUrl: string, mediaType: 'image' | 'video' | 'document' | 'audio', caption?: string): Promise<boolean> {
     try {
       const chatId = `${to}@c.us`;
@@ -481,57 +481,57 @@ export class WhatsAppService {
     }
   }
 
-  // Отправка ответа менеджера клиенту
+
   async sendManagerReply(reply: ManagerReply): Promise<boolean> {
     if (reply.targetPlatform !== 'whatsapp') {
       return false;
     }
 
     try {
-      // Отправляем текстовое сообщение с гиперссылкой на Telegram
+
       if (reply.message) {
-        // Очищаем сообщение от лишних мета-тегов и ссылок
+
         let cleanMessage = reply.message;
         
-        // Удаляем ссылки на Telegram (https://t.me/...)
+
         cleanMessage = cleanMessage.replace(/https:\/\/t\.me\/[^\s\n]+/g, '');
         
-        // Удаляем упоминания пользователей (@username)
+
         cleanMessage = cleanMessage.replace(/@[a-zA-Z0-9_]+/g, '');
         
-        // Удаляем ID сообщений и другие мета-данные
+
         cleanMessage = cleanMessage.replace(/\[[^\]]+\]/g, '');
         cleanMessage = cleanMessage.replace(/\([^)]*message[^)]*\)/gi, '');
         cleanMessage = cleanMessage.replace(/\([^)]*thread[^)]*\)/gi, '');
         
-        // Удаляем лишние переносы строк и пробелы
+
         cleanMessage = cleanMessage.replace(/\n\s*\n/g, '\n').trim();
         cleanMessage = cleanMessage.replace(/\s+/g, ' ').trim();
         
-        // Удаляем пустые строки в начале и конце
+
         cleanMessage = cleanMessage.replace(/^\s*\n+|\n+\s*$/g, '');
         
-        // Если сообщение стало пустым после очистки, используем стандартный текст
+
         if (!cleanMessage || cleanMessage.length < 2) {
           cleanMessage = 'Ответ от менеджера';
         }
         
-        // Создаем гиперссылку на Telegram аккаунт менеджера
+
         const telegramLink = `https://t.me/${reply.managerUsername.replace('@', '')}`;
-        const managerMessage = `${cleanMessage}\n\n📱 Связаться в Telegram: ${telegramLink}`;
+        const managerMessage = `${cleanMessage}\n\n📱 Связаться с менеджером в Telegram: ${telegramLink}`;
         await this.sendTextMessage(reply.targetUserId, managerMessage);
       }
 
-      // Отправляем медиа файлы, если есть (исключаем аватарки и служебные изображения)
+
       if (reply.mediaUrls && reply.mediaUrls.length > 0) {
         for (const mediaUrl of reply.mediaUrls) {
-          // Пропускаем аватарки и служебные изображения
+
           if (this.isServiceImage(mediaUrl)) {
             console.log('⏭️ Пропускаем служебное изображение:', mediaUrl);
             continue;
           }
           
-          // Определяем тип медиа по URL или расширению
+
           const mediaType = this.getMediaTypeFromUrl(mediaUrl);
           await this.sendMediaMessage(reply.targetUserId, mediaUrl, mediaType);
         }
@@ -545,7 +545,7 @@ export class WhatsAppService {
     }
   }
 
-  // Определение типа медиа по URL
+
   private getMediaTypeFromUrl(url: string): 'image' | 'video' | 'document' | 'audio' {
     const extension = url.split('.').pop()?.toLowerCase();
     
@@ -560,20 +560,20 @@ export class WhatsAppService {
     }
   }
 
-  // Проверка, является ли изображение служебным (аватарка, иконка и т.д.)
+
   private isServiceImage(url: string): boolean {
     const lowerUrl = url.toLowerCase();
     
-    // Проверяем размеры файла в URL (обычно аватарки маленькие)
+
     const sizeMatch = url.match(/[?&]size=(\d+)/);
     if (sizeMatch) {
       const size = parseInt(sizeMatch[1]);
-      if (size <= 200) { // Аватарки обычно меньше 200px
+      if (size <= 200) {
         return true;
       }
     }
     
-    // Проверяем паттерны URL, указывающие на аватарки
+
     const avatarPatterns = [
       'avatar',
       'profile',
@@ -592,7 +592,7 @@ export class WhatsAppService {
       }
     }
     
-    // Проверяем размеры в параметрах URL
+
     const dimensionMatch = url.match(/[?&](width|height)=(\d+)/);
     if (dimensionMatch) {
       const dimension = parseInt(dimensionMatch[2]);
@@ -614,10 +614,10 @@ export class WhatsAppService {
         return;
       }
       
-      // Сохраняем обработчик заявок перед уничтожением клиента
+
       const savedApplicationHandler = this.onNewApplication;
 
-      // Безопасно уничтожаем клиент
+
       try {
         if (this.client) {
           await this.client.destroy();
@@ -626,10 +626,10 @@ export class WhatsAppService {
         console.log('⚠️ Ошибка при уничтожении клиента (игнорируем):', error instanceof Error ? error.message : 'Неизвестная ошибка');
       }
 
-      // Ждем больше времени для полной очистки
+
       await new Promise(resolve => setTimeout(resolve, 5000));
       
-      // Пересоздаем клиент с теми же настройками
+
       this.client = new Client({
         authStrategy: new LocalAuth({
           clientId: "nord-laundry-whatsapp",
@@ -688,16 +688,16 @@ export class WhatsAppService {
         takeoverTimeoutMs: 0
       });
 
-      // Переустанавливаем обработчики событий
+
       this.setupEventHandlers();
       
-      // Восстанавливаем обработчик заявок
+
       if (savedApplicationHandler) {
         this.onNewApplication = savedApplicationHandler;
         console.log('✅ Обработчик заявок восстановлен после перезапуска');
       }
       
-      // Инициализируем клиент
+
       this.client.initialize();
       console.log('✅ WhatsApp клиент перезапущен');
     } catch (error) {
@@ -706,7 +706,7 @@ export class WhatsAppService {
   }
 
 
-  // Логирование состояния клиента
+
   private async logClientState(): Promise<void> {
     try {
       if (!this.client) {
@@ -714,7 +714,7 @@ export class WhatsAppService {
         return;
       }
 
-      // getState() возвращает Promise, поэтому нужно await
+
       let state = 'UNKNOWN';
       try {
         state = await this.client.getState();
@@ -737,16 +737,16 @@ export class WhatsAppService {
     }
   }
 
-  // Принудительное сохранение сессии
+
   private async forceSaveSession(): Promise<void> {
     try {
-      // Проверяем, что клиент инициализирован и готов
+
       if (!this.client) {
         console.log('📊 Клиент не инициализирован, пропускаем сохранение сессии');
         return;
       }
 
-      // Проверяем состояние клиента (getState() возвращает Promise)
+
       let state = 'UNKNOWN';
       try {
         state = await this.client.getState();
@@ -760,19 +760,19 @@ export class WhatsAppService {
         return;
       }
 
-      // Проверяем доступность страницы
+
       if (!this.client.pupPage || this.client.pupPage.isClosed()) {
         console.log('📊 Страница недоступна, пропускаем сохранение сессии');
         return;
       }
 
-      // Принудительно сохраняем сессию
+
       await this.client.pupPage.evaluate(() => {
         try {
-          // Сохраняем данные сессии в localStorage
+
           if (window.localStorage) {
             const now = Date.now();
-            const tenYears = 315360000000; // 10 лет в миллисекундах
+            const tenYears = 315360000000;
             
             window.localStorage.setItem('wwebjs_session_saved', now.toString());
             window.localStorage.setItem('wwebjs_session_duration', tenYears.toString());
@@ -782,13 +782,13 @@ export class WhatsAppService {
             window.localStorage.setItem('wwebjs_session_expires', (now + tenYears).toString());
             window.localStorage.setItem('wwebjs_session_persistent', 'true');
             
-            // Дополнительные настройки для долгосрочной сессии
+
             window.localStorage.setItem('wwebjs_session_never_expire', 'true');
             window.localStorage.setItem('wwebjs_session_auto_refresh', 'true');
             window.localStorage.setItem('wwebjs_session_backup_enabled', 'true');
           }
           
-          // Также сохраняем в sessionStorage для дополнительной надежности
+
           if (window.sessionStorage) {
             window.sessionStorage.setItem('wwebjs_session_active', 'true');
             window.sessionStorage.setItem('wwebjs_session_timestamp', Date.now().toString());
@@ -800,20 +800,20 @@ export class WhatsAppService {
       
       console.log('💾 Сессия принудительно сохранена с настройками на 10 лет');
       
-      // Создаем архив для переноса на VPS (только если состояние CONNECTED)
+
       if (state === 'CONNECTED') {
         await this.createAuthArchive();
       }
       
     } catch (error) {
-      // Логируем только если это не ошибка закрытой сессии
+
       if (error instanceof Error && !error.message.includes('Session closed') && !error.message.includes('Target closed')) {
         console.log('⚠️ Не удалось принудительно сохранить сессию:', error.message);
       }
     }
   }
 
-  // Создание архива авторизации для переноса на VPS
+
   private async createAuthArchive(): Promise<void> {
     try {
       const fs = await import('fs');
@@ -823,25 +823,25 @@ export class WhatsAppService {
       const execAsync = promisify(exec);
 
       const authDir = '.wwebjs_auth';
-      const archiveName = 'whatsapp_auth_latest.tar.gz'; // Фиксированное имя файла
+      const archiveName = 'whatsapp_auth_latest.tar.gz';
 
-      // Проверяем, существует ли папка авторизации
+
       if (!fs.existsSync(authDir)) {
         console.log('📁 Папка авторизации не найдена, пропускаем создание архива');
         return;
       }
 
-      // Удаляем старый архив, если существует
+
       if (fs.existsSync(archiveName)) {
         fs.unlinkSync(archiveName);
         console.log('🗑️ Удален старый архив авторизации');
       }
 
-      // Создаем новый архив
+
       console.log('📦 Обновляем архив авторизации для переноса на VPS...');
       await execAsync(`tar -czf ${archiveName} ${authDir}/`);
       
-      // Проверяем размер архива
+
       const stats = fs.statSync(archiveName);
       const sizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
       
@@ -854,28 +854,28 @@ export class WhatsAppService {
     }
   }
 
-  // Запуск сервиса
+
   start(): void {
     console.log('🚀 Инициализация WhatsApp клиента...');
     console.log('🔒 Настройка долгосрочной сессии (10 лет)...');
     
-    // Проверяем существование сохраненной сессии
+
     this.checkExistingSession();
     
     this.client.initialize();
     console.log('✅ WhatsApp бот запущен и ожидает авторизации');
     
-    // Периодически сохраняем сессию и проверяем состояние
-    // Увеличенный интервал 5 минут, чтобы не перегружать клиент
+
+
     setInterval(async () => {
       await this.forceSaveSession();
       await this.logClientState();
       await this.monitorSessionHealth();
-    }, 5 * 60 * 1000); // Каждые 5 минут - достаточно для мониторинга
+    }, 5 * 60 * 1000);
 
   }
 
-  // Проверка существующей сессии
+
   private async checkExistingSession(): Promise<void> {
     try {
       const fs = await import('fs');
@@ -884,13 +884,13 @@ export class WhatsAppService {
       if (fs.existsSync(authDir)) {
         console.log('✅ Найдена сохраненная сессия WhatsApp');
         
-        // Проверяем возраст сессии
+
         const stats = fs.statSync(authDir);
         const ageInDays = (Date.now() - stats.mtime.getTime()) / (1000 * 60 * 60 * 24);
         
         console.log(`📅 Возраст сессии: ${Math.floor(ageInDays)} дней`);
         
-        if (ageInDays < 365) { // Менее года
+        if (ageInDays < 365) {
           console.log('✅ Сессия должна быть действительной, попытка автоматического входа...');
         } else {
           console.log('⚠️ Сессия старая, может потребоваться повторная авторизация');
@@ -904,7 +904,7 @@ export class WhatsAppService {
   }
 
 
-  // Мониторинг здоровья сессии
+
   private async monitorSessionHealth(): Promise<void> {
     try {
       if (!this.client) {
@@ -917,21 +917,21 @@ export class WhatsAppService {
         state = await this.client.getState();
       } catch (error) {
         console.log('⚠️ Ошибка получения состояния для мониторинга:', error instanceof Error ? error.message : 'Неизвестная ошибка');
-        // НЕ перезапускаем автоматически при ошибке получения состояния
-        // Даем клиенту время на инициализацию
+
+
         console.log('💡 Ожидаем инициализации клиента, не перезапускаем...');
         return;
       }
 
       console.log(`📊 Текущее состояние WhatsApp: ${state}`);
 
-      // Проверяем различные состояния
+
       if (state === 'CONNECTED') {
-        // Сессия в порядке, сбрасываем счетчик попыток
+
         this.restartAttempts = 0;
         console.log('✅ WhatsApp подключен и работает нормально');
         
-        // Дополнительно проверяем, что сессия действительно активна
+
         try {
           if (this.client.pupPage && !this.client.pupPage.isClosed()) {
             const sessionActive = await this.client.pupPage.evaluate(() => {
@@ -949,30 +949,30 @@ export class WhatsAppService {
       } else if (state === 'UNPAIRED' || state === 'UNPAIRED_IDLE') {
         console.log('⚠️ Обнаружено разлогинивание в мониторинге');
         console.log('💡 Требуется повторная авторизация через QR код');
-        // НЕ перезапускаем автоматически - это может усугубить проблему
+
       } else if (state === 'TIMEOUT' || state === 'CONFLICT') {
         console.log('⚠️ Обнаружена проблема с сессией:', state);
         console.log('💡 Проверьте, не открыт ли WhatsApp Web в браузере');
-        // НЕ перезапускаем автоматически
+
       } else if (state === 'OPENING') {
         console.log('📱 Сессия открывается, ожидаем завершения инициализации...');
-        // Это нормальное состояние при запуске, не трогаем
+
       } else {
         console.log(`📊 Состояние сессии: ${state} - ожидаем готовности клиента...`);
-        // Для других состояний просто логируем, не перезапускаем
+
       }
     } catch (error) {
       console.log('⚠️ Ошибка в мониторинге сессии:', error instanceof Error ? error.message : 'Неизвестная ошибка');
     }
   }
 
-  // Очистка списка отправленных благодарственных сообщений (для тестирования)
+
   clearThanksHistory(): void {
     this.thanksMessageSent.clear();
     console.log('🧹 История отправленных благодарственных сообщений очищена');
   }
 
-  // Остановка сервиса
+
   stop(): void {
     if (this.client) {
       this.client.destroy();

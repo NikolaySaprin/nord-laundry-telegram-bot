@@ -1,9 +1,9 @@
-// Общий экземпляр бота для использования в разных процессах
+
 import { ApplicationBot } from './dist/lib/telegram-bot.js';
 
 let sharedBotInstance = null;
 
-// Функция для получения или создания экземпляра бота
+
 function getSharedBot() {
     if (!sharedBotInstance) {
         const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -25,7 +25,7 @@ function getSharedBot() {
     return sharedBotInstance;
 }
 
-// Функция для запуска бота
+
 export function startSharedBot() {
     const bot = getSharedBot();
     if (bot) {
@@ -34,7 +34,7 @@ export function startSharedBot() {
     }
 }
 
-// Функция для остановки бота
+
 export function stopSharedBot() {
     if (sharedBotInstance) {
         sharedBotInstance.stop();
@@ -42,7 +42,7 @@ export function stopSharedBot() {
     }
 }
 
-// Функция для обработки заявки
+
 export async function handleApplication(applicationData) {
     const bot = getSharedBot();
     if (bot) {
@@ -52,5 +52,5 @@ export async function handleApplication(applicationData) {
     return false;
 }
 
-// Экспортируем также для CommonJS (для webhook-server.js)
+
 export { getSharedBot };

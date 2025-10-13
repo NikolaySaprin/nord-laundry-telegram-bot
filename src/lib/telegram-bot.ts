@@ -5,9 +5,9 @@ import { WhatsAppService } from './whatsapp-service.js';
 export class ApplicationBot {
   private bot: Bot;
   private groupChatId: string;
-  private activeThreads: Map<string, number> = new Map(); // Хранит thread_id по идентификатору пользователя
-  private threadToUser: Map<number, { userId?: string; platform: 'telegram' | 'whatsapp'; userIdentifier: string }> = new Map(); // Хранит данные пользователя по thread_id
-  private thanksMessageSent: Set<string> = new Set(); // Отслеживаем отправленные благодарственные сообщения
+  private activeThreads: Map<string, number> = new Map();
+  private threadToUser: Map<number, { userId?: string; platform: 'telegram' | 'whatsapp'; userIdentifier: string }> = new Map();
+  private thanksMessageSent: Set<string> = new Set();
   private whatsappService?: WhatsAppService;
 
   constructor(token: string, groupChatId: string, enableWhatsApp: boolean = false) {
@@ -20,11 +20,9 @@ export class ApplicationBot {
     this.groupChatId = groupChatId;
     this.bot = new Bot(token);
     
-    // Инициализируем WhatsApp сервис, если включен
     if (enableWhatsApp) {
       console.log('🔧 Инициализируем WhatsApp сервис...');
       this.whatsappService = new WhatsAppService();
-      // Устанавливаем обработчик для новых заявок из WhatsApp
       this.whatsappService.setApplicationHandler((application: Application) => this.handleNewApplication(application));
       console.log('✅ WhatsApp сервис инициализирован и обработчик установлен');
     } else {
@@ -35,21 +33,17 @@ export class ApplicationBot {
   }
 
   private setupHandlers() {
-    // Обработчик команды /start для личных сообщений
     this.bot.command('start', async (ctx: Context) => {
       await ctx.reply(`Добро пожаловать! Опишите ваш вопрос, и наши специалисты свяжутся с вами в ближайшее время.`);
     });
 
-    // Обрабатываем все текстовые сообщения в личных чатах
     this.bot.on('message', async (ctx: Context) => {
       if (ctx.chat?.type === 'private') {
-        // Обработка личных сообщений от клиентов
         const user = ctx.from;
         const messageText = ctx.message?.text;
         
         if (!user || !messageText) return;
 
-        // Создаем заявку из сообщения в Telegram
         const application: Application = {
           source: 'telegram_direct',
           userIdentifierTelegram: `tg_${user.username || user.id}`,
@@ -57,14 +51,13 @@ export class ApplicationBot {
           userUsernameTelegram: user.username || undefined,
           userMessage: messageText,
           telegramUserId: user.id,
-          name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Пользователь', // Имя для общего поля
-          phone: 'Не указан', // В Telegram телефон не доступен по умолчанию
+          name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Пользователь',
+          phone: 'Не указан',
           messageType: 'text'
         };
 
         await this.handleNewApplication(application);
         
-        // Отправляем благодарственное сообщение только при первом сообщении
         const userIdentifier = `tg_${user.id}`;
         if (!this.thanksMessageSent.has(userIdentifier)) {
           await ctx.reply("Спасибо за заявку!\nМы свяжемся с Вами в ближайшее время");
@@ -72,10 +65,8 @@ export class ApplicationBot {
         }
       } else if (ctx.chat?.id.toString() === this.groupChatId.toString()) {
         if (ctx.message?.message_thread_id) {
-          // Обработка сообщений в темах форума (ответы менеджеров)
           await this.handleManagerReply(ctx);
         } else {
-          // Сообщения в общем чате группы без thread_id игнорируются
           console.log('Игнорируется сообщение в общем чате группы (без thread_id):', {
             chatId: ctx.chat?.id,
             fromUserId: ctx.from?.id,
@@ -94,30 +85,30 @@ export class ApplicationBot {
         userName: application.name
       });
 
-      // Создаем уникальный идентификатор для каждой заявки
+
       let userIdentifier: string;
       let platform: 'whatsapp' | 'telegram';
       let shouldCreateNewThread: boolean;
       
       if (application.source === 'whatsapp') {
-        // WhatsApp - используем номер телефона как идентификатор
+
         userIdentifier = application.whatsappUserId!;
         platform = 'whatsapp';
-        // Для WhatsApp создаем тему только если её нет
+
         shouldCreateNewThread = !this.activeThreads.has(userIdentifier);
       } else if (application.source === 'telegram_direct') {
-        // Telegram - используем telegram ID как идентификатор
+
         userIdentifier = application.userIdentifierTelegram!;
         platform = 'telegram';
-        // Для Telegram создаем тему только если её нет
+
         shouldCreateNewThread = !this.activeThreads.has(userIdentifier);
       } else {
-        // Заявки с сайта (website_form, contact_form, bottom_form, services_form, modal_form)
-        // ВСЕГДА создаем новую тему для каждой заявки с сайта
+
+
         const timestamp = Date.now();
         userIdentifier = `website_${application.source}_${application.phone}_${timestamp}`;
         platform = 'telegram';
-        shouldCreateNewThread = true; // Всегда создаем новую тему для заявок с сайта
+        shouldCreateNewThread = true;
       }
       
       let threadId = this.activeThreads.get(userIdentifier);
@@ -132,7 +123,7 @@ export class ApplicationBot {
       });
       
       if (shouldCreateNewThread) {
-        // Создаем новую тему форума
+
         const topicName = this.generateTopicName(application);
         console.log('🆕 Создаем новую тему форума:', topicName);
         
@@ -151,7 +142,7 @@ export class ApplicationBot {
         
         console.log('✅ Новая тема создана с ID:', threadId);
         
-        // Отправляем первоначальное сообщение о заявке
+
         const message = this.formatApplicationMessage(application);
         console.log('📤 Отправляем сообщение о заявке в тему:', threadId);
         await this.bot.api.sendMessage(
@@ -161,7 +152,7 @@ export class ApplicationBot {
         );
         console.log('✅ Сообщение о заявке отправлено');
       } else {
-        // Добавляем в существующую тему
+
         console.log('📝 Добавляем сообщение в существующую тему:', threadId);
         const message = this.formatNewMessage(application);
         await this.bot.api.sendMessage(
@@ -212,7 +203,7 @@ export class ApplicationBot {
     
     const sourceLabel = sourceLabels[application.source] || 'с сайта';
     
-    // Форматируем время в московском часовом поясе (+3 UTC)
+
     const moscowTime = new Date().toLocaleString('ru-RU', { 
       timeZone: 'Europe/Moscow',
       year: 'numeric',
@@ -237,12 +228,12 @@ export class ApplicationBot {
       message = `📋 Новая заявка ${sourceLabel}:\n\n👤 Имя: ${application.name}\n📞 Телефон: ${application.phone}`;
     }
     
-    // Добавляем сферу деятельности, если есть
+
     if (application.sphere) {
       message += `\n🏢 Сфера: ${application.sphere}`;
     }
     
-    // Добавляем информацию о медиа, если есть
+
     if (application.mediaUrls && application.mediaUrls.length > 0) {
       const mediaTypeLabels: Record<Application['messageType'], string> = {
         'text': '📝',
@@ -261,7 +252,7 @@ export class ApplicationBot {
   }
 
   private formatNewMessage(application: Application): string {
-    // Форматируем время в московском часовом поясе (+3 UTC)
+
     const moscowTime = new Date().toLocaleString('ru-RU', { 
       timeZone: 'Europe/Moscow',
       year: 'numeric',
@@ -275,7 +266,7 @@ export class ApplicationBot {
     return `📝 Новое сообщение в заявке:\n\n${application.userMessage || 'Без текста'}\n⏰ Время: ${moscowTime} (МСК)`;
   }
 
-  // Обработка ответов менеджеров в группе
+
   private async handleManagerReply(ctx: Context): Promise<void> {
     try {
       const message = ctx.message;
@@ -293,14 +284,14 @@ export class ApplicationBot {
         return;
       }
       
-      // Получаем текст сообщения
+
       const messageText = message.text || message.caption || '';
       if (!messageText.trim()) {
         console.log('Пропуск сообщения: пустой текст');
         return;
       }
       
-      // Находим данные клиента по thread_id
+
       const userData = this.threadToUser.get(message.message_thread_id);
       if (!userData) {
         console.log('Не найден клиент для thread_id:', message.message_thread_id);
@@ -308,18 +299,18 @@ export class ApplicationBot {
         return;
       }
       
-      // Формируем подпись менеджера
+
       const managerName = this.formatManagerSignature(from);
       const managerUsername = from.username ? `@${from.username}` : 'Менеджер';
       
-      // Собираем медиа файлы, если есть (исключаем фото/аватары для WhatsApp)
+
       const mediaUrls: string[] = [];
-      // Исключаем фото для WhatsApp, чтобы не загружать аватары
-      // if (message.photo) {
-      //   const photo = message.photo[message.photo.length - 1]; // Берем самое большое фото
-      //   const file = await this.bot.api.getFile(photo.file_id);
-      //   mediaUrls.push(`https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`);
-      // }
+
+
+
+
+
+
       if (message.video) {
         const file = await this.bot.api.getFile(message.video.file_id);
         mediaUrls.push(`https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`);
@@ -343,10 +334,10 @@ export class ApplicationBot {
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
       };
 
-      // Отправляем ответ в зависимости от платформы
+
       if (userData.platform === 'telegram' && userData.userId) {
-        // Для Telegram отправляем ответ с подписью менеджера
-        const messageWithSignature = `${messageText}\n\n_От: ${managerName}_`;
+
+        const messageWithSignature = `${messageText}\n\n_Менеджер: ${managerName}_`;
         await this.sendToUser(parseInt(userData.userId), messageWithSignature);
       } else if (userData.platform === 'whatsapp' && this.whatsappService) {
         await this.whatsappService.sendManagerReply(managerReply);
@@ -359,7 +350,7 @@ export class ApplicationBot {
     }
   }
   
-  // Форматирование подписи менеджера
+
   private formatManagerSignature(manager: any): string {
     const firstName = manager.first_name || '';
     const lastName = manager.last_name || '';
@@ -380,7 +371,7 @@ export class ApplicationBot {
     return signature;
   }
 
-  // Метод для отправки ответов пользователям (для Telegram)
+
   async sendToUser(userId: number, message: string): Promise<void> {
     try {
       await this.bot.api.sendMessage(userId, message, { parse_mode: 'Markdown' });
@@ -388,10 +379,10 @@ export class ApplicationBot {
     } catch (error: any) {
       console.error(`Ошибка отправки сообщения пользователю ${userId}:`, error);
       
-      // Если ошибка связана с форматированием Markdown, попробуем отправить без форматирования
+
       if (error.description && error.description.includes('parse')) {
         try {
-          const plainMessage = message.replace(/\*([^*]+)\*/g, '$1'); // Убираем Markdown форматирование
+          const plainMessage = message.replace(/\*([^*]+)\*/g, '$1');
           await this.bot.api.sendMessage(userId, plainMessage);
           console.log(`Сообщение отправлено пользователю ${userId} без форматирования`);
         } catch (retryError) {

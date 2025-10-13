@@ -1,27 +1,26 @@
-const http = require('http');
-const { exec } = require('child_process');
-const path = require('path');
+import http from 'http';
+import { exec } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { handleApplication } from './shared-bot.mjs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = 3001;
-const SECRET = process.env.WEBHOOK_SECRET || 'your-secret-key'; // Замените на свой секретный ключ
-
-// Импортируем общий экземпляр бота
-const { handleApplication } = require('./shared-bot.cjs');
+const SECRET = process.env.WEBHOOK_SECRET || 'your-secret-key';
 
 const server = http.createServer((req, res) => {
-    // Настройка CORS для веб-запросов
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     
-    // Обработка preflight запросов
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
         res.end();
         return;
     }
     
-    // Обработка заявок с сайта
     if (req.method === 'POST' && req.url === '/api/application') {
         let body = '';
         
@@ -34,7 +33,6 @@ const server = http.createServer((req, res) => {
                 const applicationData = JSON.parse(body);
                 console.log('📋 Получена заявка с сайта:', applicationData);
                 
-                // Обрабатываем заявку через общий экземпляр бота
                 const success = await handleApplication(applicationData);
                 
                 if (success) {
@@ -61,7 +59,6 @@ const server = http.createServer((req, res) => {
             }
         });
     }
-    // Обработка GitHub webhooks для развертывания
     else if (req.method === 'POST' && req.url === '/webhook') {
         let body = '';
         
@@ -73,20 +70,16 @@ const server = http.createServer((req, res) => {
             try {
                 const payload = JSON.parse(body);
                 
-                // Проверяем секретный ключ (если настроен)
                 const signature = req.headers['x-hub-signature-256'];
                 if (SECRET && signature) {
-                    // Здесь можно добавить проверку подписи GitHub
                     console.log('🔐 Проверка подписи webhook...');
                 }
                 
-                // Проверяем, что это push в main ветку
                 if (payload.ref === 'refs/heads/main' || payload.ref === 'refs/heads/master') {
                     console.log('🔄 Получен webhook для развертывания...');
                     console.log(`📝 Commit: ${payload.head_commit?.message || 'N/A'}`);
                     console.log(`👤 Author: ${payload.head_commit?.author?.name || 'N/A'}`);
                     
-                    // Запускаем развертывание
                     deploy();
                     
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -152,7 +145,6 @@ server.listen(PORT, () => {
     console.log('🌐 Настройте отправку заявок с сайта на /api/application');
 });
 
-// Graceful shutdown
 process.on('SIGINT', () => {
     console.log('\n🛑 Остановка webhook сервера...');
     server.close(() => {

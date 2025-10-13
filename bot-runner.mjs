@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { startSharedBot, stopSharedBot } from './shared-bot.mjs';
 
-// Загружаем переменные окружения
+
 dotenv.config();
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -26,7 +26,7 @@ if (ENABLE_WHATSAPP) {
   console.log('⚠️ WhatsApp отключен - будет работать только Telegram');
 }
 
-// Обработка сигналов завершения
+
 process.on('SIGINT', () => {
   console.log('\n🛑 Получен сигнал SIGINT. Завершение работы...');
   stopSharedBot();
@@ -39,7 +39,7 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-// Запускаем бота
+
 try {
   startSharedBot();
   console.log('✅ Объединенный бот запущен успешно!');

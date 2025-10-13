@@ -9,12 +9,12 @@ export type Application = {
   userMessage?: string;
   telegramUserId?: number;
   
-  // WhatsApp specific fields
+
   whatsappUserId?: string;
   whatsappUserName?: string;
   whatsappUserPhone?: string;
   
-  // Media support
+
   mediaUrls?: string[];
   messageType: 'text' | 'image' | 'video' | 'document' | 'audio';
 };
