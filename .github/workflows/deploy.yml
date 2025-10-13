@@ -28,10 +28,12 @@ jobs:
             npm install
             # Компиляция TypeScript
             npm run build
-            # Остановка существующего процесса (если есть)
+            # Остановка существующих процессов (если есть)
             pm2 stop nord-laundry-bot || true
+            pm2 stop nord-laundry-webhook || true
             pm2 delete nord-laundry-bot || true
-            # Запуск бота
+            pm2 delete nord-laundry-webhook || true
+            # Запуск бота и webhook сервера
             pm2 start ecosystem.config.cjs --env production
             # Сохраняем процесс лист для автозагрузки
             pm2 save
