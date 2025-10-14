@@ -30,12 +30,12 @@ echo "✅ WHATSAPP_FORCE_RESET=true добавлено в .env"
 npm run build
 
 # Запускаем бота
-pm2 start bot-runner.mjs --name laundry-bot
+pm2 start bot-runner.mjs --name nord-laundry-bot
 
 echo ""
 echo "📱 Смотрите логи для QR кода:"
-echo "   pm2 logs laundry-bot"
+echo "   pm2 logs nord-laundry-bot"
 echo ""
 echo "⚠️  ВАЖНО: После успешной авторизации выполните:"
 echo "   sed -i '/WHATSAPP_FORCE_RESET/d' .env"
-echo "   pm2 restart laundry-bot"
+echo "   pm2 restart nord-laundry-bot"

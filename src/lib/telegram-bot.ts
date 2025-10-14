@@ -326,7 +326,7 @@ export class ApplicationBot {
       
       const managerReply: ManagerReply = {
         threadId: message.message_thread_id,
-        targetUserId: userData.userId!,
+        targetUserId: userData.userIdentifier, // Используем userIdentifier вместо userId
         targetPlatform: userData.platform,
         managerName,
         managerUsername,
@@ -334,13 +334,28 @@ export class ApplicationBot {
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
       };
 
+      console.log('📤 Отправляем ответ менеджера:', {
+        platform: userData.platform,
+        targetUserId: userData.userIdentifier,
+        messagePreview: messageText.substring(0, 50)
+      });
 
       if (userData.platform === 'telegram' && userData.userId) {
-
+        // Отправка в Telegram
         const messageWithSignature = `${messageText}\n\n_Менеджер: ${managerName}_`;
         await this.sendToUser(parseInt(userData.userId), messageWithSignature);
+        console.log('✅ Ответ отправлен в Telegram:', userData.userId);
       } else if (userData.platform === 'whatsapp' && this.whatsappService) {
-        await this.whatsappService.sendManagerReply(managerReply);
+        // Отправка в WhatsApp
+        console.log('📤 Отправляем в WhatsApp:', managerReply);
+        const success = await this.whatsappService.sendManagerReply(managerReply);
+        if (success) {
+          console.log('✅ Ответ отправлен в WhatsApp:', userData.userIdentifier);
+        } else {
+          console.error('❌ Ошибка отправки в WhatsApp');
+        }
+      } else {
+        console.warn('⚠️  Неизвестная платформа или WhatsApp сервис не доступен');
       }
       
       console.log(`Ответ отправлен клиенту ${userData.userId} (${userData.platform}) от менеджера ${from.id}`);
