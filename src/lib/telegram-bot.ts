@@ -11,6 +11,14 @@ export class ApplicationBot {
   private whatsappService?: WhatsAppService;
 
   constructor(token: string, groupChatId: string, enableWhatsApp: boolean = false) {
+    console.log('🔧 ==========================================');
+    console.log('🔧 ИНИЦИАЛИЗАЦИЯ APPLICATIONBOT');
+    console.log('🔧 ==========================================');
+    console.log('🔧 TELEGRAM_BOT_TOKEN:', token ? '✅ установлен' : '❌ не установлен');
+    console.log('🔧 TELEGRAM_GROUP_CHAT_ID:', groupChatId ? '✅ установлен' : '❌ не установлен');
+    console.log('🔧 ENABLE_WHATSAPP:', enableWhatsApp ? '✅ true' : '❌ false');
+    console.log('🔧 ==========================================');
+    
     if (!token) {
       throw new Error('Telegram bot token is required');
     }
@@ -23,13 +31,22 @@ export class ApplicationBot {
     if (enableWhatsApp) {
       console.log('🔧 Инициализируем WhatsApp сервис...');
       this.whatsappService = new WhatsAppService();
+      console.log('✅ WhatsAppService создан');
+      
+      console.log('🔧 Устанавливаем обработчик заявок...');
       this.whatsappService.setApplicationHandler((application: Application) => this.handleNewApplication(application));
-      console.log('✅ WhatsApp сервис инициализирован и обработчик установлен');
+      console.log('✅ Обработчик заявок установлен');
+      
+      console.log('⚠️  ВНИМАНИЕ: WhatsApp клиент еще НЕ ЗАПУЩЕН!');
+      console.log('💡 Запуск произойдет при вызове start()');
     } else {
-      console.log('⚠️ WhatsApp сервис отключен');
+      console.log('⚠️ WhatsApp сервис отключен (ENABLE_WHATSAPP=false)');
     }
     
+    console.log('🔧 Настраиваем Telegram обработчики...');
     this.setupHandlers();
+    console.log('✅ Telegram обработчики настроены');
+    console.log('🔧 ==========================================');
   }
 
   private setupHandlers() {
@@ -284,6 +301,13 @@ export class ApplicationBot {
         return;
       }
       
+      // КРИТИЧНО: Игнорируем сообщения от самого бота
+      const botInfo = await this.bot.api.getMe();
+      if (from.id === botInfo.id) {
+        console.log('⏭️ Пропуск сообщения: сообщение от самого бота');
+        return;
+      }
+      
 
       const messageText = message.text || message.caption || '';
       if (!messageText.trim()) {
@@ -409,11 +433,23 @@ export class ApplicationBot {
 
 
   start(): void {
+    console.log('🚀 ==========================================');
+    console.log('🚀 ЗАПУСК APPLICATIONBOT');
+    console.log('🚀 ==========================================');
+    
+    console.log('🚀 Запуск Telegram бота...');
     this.bot.start();
-    console.log('Telegram бот запущен');
+    console.log('✅ Telegram бот запущен');
+    
     if (this.whatsappService) {
+      console.log('🚀 ЗАПУСК WHATSAPP СЕРВИСА...');
       this.whatsappService.start();
+      console.log('✅ WhatsApp сервис запущен');
+    } else {
+      console.log('⚠️ WhatsApp сервис НЕ ДОСТУПЕН - будет работать только Telegram');
     }
+    
+    console.log('🚀 ==========================================');
   }
 
   stop(): void {
