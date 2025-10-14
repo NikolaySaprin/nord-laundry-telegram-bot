@@ -29,6 +29,9 @@ export class WhatsAppService {
           '--no-zygote',
           '--single-process',
           '--disable-gpu',
+          '--disable-software-rasterizer',
+          '--user-data-dir=/tmp/chromium-user-data',
+          '--temp-profile',
           '--disable-web-security',
           '--disable-features=VizDisplayCompositor',
           '--disable-background-timer-throttling',
@@ -1014,6 +1017,21 @@ export class WhatsAppService {
           console.error('❌ Ошибка удаления сессии:', error);
         }
         return;
+      }
+      
+      // КРИТИЧНО: Проверяем откуда берется сессия
+      if (fs.existsSync('.wwebjs_auth')) {
+        console.log('⚠️  ОБНАРУЖЕНА ПАПКА .wwebjs_auth');
+        console.log('📂 Содержимое:');
+        const { exec } = await import('child_process');
+        const { promisify } = await import('util');
+        const execAsync = promisify(exec);
+        try {
+          const { stdout } = await execAsync('ls -lah .wwebjs_auth/');
+          console.log(stdout);
+        } catch (e) {
+          console.log('Не удалось прочитать содержимое');
+        }
       }
       
       if (fs.existsSync(authDir)) {

@@ -50,10 +50,21 @@ echo "🗑️  ШАГ 2: Удаление WhatsApp данных..."
 
 # Основная папка сессии
 if [ -d ".wwebjs_auth" ]; then
+    echo "⚠️  Найдена .wwebjs_auth, удаляем..."
+    ls -lah .wwebjs_auth/ 2>/dev/null || echo "Не удалось прочитать содержимое"
+    
     chmod -R 777 .wwebjs_auth/ 2>/dev/null
     rm -rf .wwebjs_auth/
     sudo rm -rf .wwebjs_auth/ 2>/dev/null
-    echo "✅ .wwebjs_auth удалена"
+    
+    # Дополнительная проверка
+    sleep 1
+    if [ -d ".wwebjs_auth" ]; then
+        echo "❌ ОШИБКА: .wwebjs_auth всё ещё существует!"
+        echo "Удалите вручную: sudo rm -rf .wwebjs_auth/"
+    else
+        echo "✅ .wwebjs_auth удалена"
+    fi
 else
     echo "✅ .wwebjs_auth не найдена"
 fi
@@ -63,6 +74,12 @@ rm -f whatsapp_auth_*.tar.gz 2>/dev/null
 sudo rm -f whatsapp_auth_*.tar.gz 2>/dev/null
 find . -name "whatsapp_auth_*.tar.gz" -delete 2>/dev/null
 echo "✅ Архивы удалены"
+
+# КРИТИЧНО: Удаляем user-data-dir Chromium
+echo "🗑️  Удаление Chromium user-data-dir..."
+rm -rf /tmp/chromium-user-data 2>/dev/null
+sudo rm -rf /tmp/chromium-user-data 2>/dev/null
+echo "✅ Chromium user-data удален"
 
 # ============================================
 # ШАГ 3: ПОЛНАЯ очистка Chrome/Chromium
