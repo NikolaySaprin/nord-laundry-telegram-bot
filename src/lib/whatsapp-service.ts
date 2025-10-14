@@ -82,6 +82,7 @@ export class WhatsAppService {
   }
 
   private setupEventHandlers(): void {
+    console.log('🔧 Настраиваем обработчики событий WhatsApp...');
 
     this.client.on('loading_screen', (percent: number, message: string) => {
       console.log(`📱 Загрузка WhatsApp сессии: ${percent}% - ${message}`);
@@ -116,6 +117,13 @@ export class WhatsAppService {
 
     this.client.on('message', async (message: Message) => {
       console.log('🔔 Получено событие message от WhatsApp клиента');
+      console.log('📝 Детали сообщения:', {
+        from: message.from,
+        body: message.body?.substring(0, 50),
+        type: message.type,
+        hasMedia: message.hasMedia,
+        timestamp: new Date().toISOString()
+      });
       await this.handleIncomingMessage(message);
     });
 
@@ -216,11 +224,13 @@ export class WhatsAppService {
       this.logClientState();
       this.restartAttempts = 0;
       
-
+      // КРИТИЧЕСКАЯ ПРОВЕРКА
       if (!this.onNewApplication) {
-        console.log('⚠️ Обработчик заявок не установлен после готовности клиента');
+        console.log('❌❌❌ КРИТИЧЕСКАЯ ОШИБКА: Обработчик заявок не установлен!');
+        console.log('⚠️  СООБЩЕНИЯ ИЗ WHATSAPP НЕ БУДУТ ПЕРЕСЫЛАТЬСЯ В TELEGRAM!');
       } else {
-        console.log('✅ Обработчик заявок активен и готов к работе');
+        console.log('✅✅✅ Обработчик заявок активен и готов к работе');
+        console.log('🚀 WhatsApp будет пересылать сообщения в Telegram');
       }
       
 
@@ -277,6 +287,7 @@ export class WhatsAppService {
     console.log('🔧 Устанавливаем обработчик заявок в WhatsApp сервисе');
     this.onNewApplication = handler;
     console.log('✅ Обработчик заявок установлен:', !!this.onNewApplication);
+    console.log('👁️  Теперь WhatsApp будет пересылать сообщения в Telegram');
   }
 
 
@@ -387,17 +398,23 @@ export class WhatsAppService {
       if (this.onNewApplication) {
         console.log('📤 Пересылаем заявку в Telegram...');
         console.log('✅ Обработчик заявок найден, отправляем заявку');
-        console.log('📋 Данные заявки:', {
+        console.log('📋 Данные заявки:', JSON.stringify({
           source: application.source,
           userPhone: application.whatsappUserPhone,
           userName: application.whatsappUserName,
           message: application.userMessage
-        });
-        await this.onNewApplication(application);
-        console.log('✅ Заявка успешно отправлена в Telegram');
+        }, null, 2));
+        
+        try {
+          await this.onNewApplication(application);
+          console.log('✅ Заявка успешно отправлена в Telegram');
+        } catch (error) {
+          console.error('❌ Ошибка при отправке заявки в Telegram:', error);
+        }
       } else {
         console.log('❌ Обработчик заявок не найден');
         console.log('🔍 Проверяем состояние onNewApplication:', this.onNewApplication);
+        console.log('⚠️  СООБЩЕНИЕ НЕ БУДЕТ ОТПРАВЛЕНО В TELEGRAM!');
       }
 
 
