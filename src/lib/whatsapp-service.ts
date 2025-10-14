@@ -889,6 +889,29 @@ export class WhatsAppService {
       const fs = await import('fs');
       const authDir = '.wwebjs_auth/session-nord-laundry-whatsapp';
       
+      // Проверяем режим принудительного сброса сессии
+      const forceReset = process.env.WHATSAPP_FORCE_RESET === 'true';
+      
+      if (forceReset && fs.existsSync(authDir)) {
+        console.log('🚨 РЕЖИМ ПРИНУДИТЕЛЬНОГО СБРОСА WHATSAPP_FORCE_RESET=true');
+        console.log('🗑️  Удаляем существующую сессию...');
+        
+        try {
+          // Удаляем всю папку .wwebjs_auth
+          const { exec } = await import('child_process');
+          const { promisify } = await import('util');
+          const execAsync = promisify(exec);
+          
+          await execAsync('rm -rf .wwebjs_auth/');
+          console.log('✅ Сессия удалена успешно');
+          console.log('🔐 Будет запрошен QR код для новой авторизации');
+          console.log('⚠️  После авторизации удалите WHATSAPP_FORCE_RESET из .env и перезапустите бота');
+        } catch (error) {
+          console.error('❌ Ошибка удаления сессии:', error);
+        }
+        return;
+      }
+      
       if (fs.existsSync(authDir)) {
         console.log('✅ Найдена сохраненная сессия WhatsApp');
         
