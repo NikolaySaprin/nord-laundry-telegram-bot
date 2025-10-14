@@ -1,6 +1,6 @@
 {
   "name": "nord-laundry-telegram-bot",
-  "version": "1.5.1",
+  "version": "1.5.4",
   "description": "Unified Telegram and WhatsApp bot for Nord Laundry",
   "main": "bot-runner.mjs",
   "type": "module",
