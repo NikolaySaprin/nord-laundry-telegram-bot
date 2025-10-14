@@ -18,10 +18,9 @@ build/
 logs/
 *.log
 
-# WhatsApp session data
+# WhatsApp session data - ВАЖНО: игнорируем ВСЕ архивы
 .wwebjs_auth/
 whatsapp_auth_*.tar.gz
-whatsapp_auth_latest.tar.gz
 
 # PM2 files
 .pm2/

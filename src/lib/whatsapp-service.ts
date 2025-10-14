@@ -815,6 +815,14 @@ export class WhatsAppService {
 
 
   private async createAuthArchive(): Promise<void> {
+    // Проверяем нужно ли создавать архив (по умолчанию - нет, только если явно включено)
+    const shouldCreateArchive = process.env.CREATE_AUTH_ARCHIVE === 'true';
+    
+    if (!shouldCreateArchive) {
+      console.log('📦 Создание архива отключено (CREATE_AUTH_ARCHIVE != true)');
+      return;
+    }
+    
     try {
       const fs = await import('fs');
       const path = await import('path');
