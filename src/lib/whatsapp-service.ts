@@ -116,15 +116,24 @@ export class WhatsAppService {
 
 
     this.client.on('message', async (message: Message) => {
-      console.log('🔔 Получено событие message от WhatsApp клиента');
+      console.log('🔔 ==========================================');
+      console.log('🔔 ПОЛУЧЕНО СОБЫТИЕ MESSAGE ОТ WHATSAPP');
+      console.log('🔔 ==========================================');
       console.log('📝 Детали сообщения:', {
         from: message.from,
-        body: message.body?.substring(0, 50),
+        body: message.body?.substring(0, 100),
         type: message.type,
         hasMedia: message.hasMedia,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        isGroup: message.from.includes('@g.us'),
+        isStatus: message.isStatus
       });
+      console.log('🔍 Проверка обработчика заявок:', !!this.onNewApplication);
+      
       await this.handleIncomingMessage(message);
+      
+      console.log('✅ Обработка сообщения завершена');
+      console.log('🔔 ==========================================');
     });
 
 
@@ -233,6 +242,23 @@ export class WhatsAppService {
         console.log('🚀 WhatsApp будет пересылать сообщения в Telegram');
       }
       
+      // ВАЖНО: Получаем информацию о подключенном аккаунте
+      try {
+        const info = this.client.info;
+        if (info) {
+          console.log('📱 ==========================================');
+          console.log('📱 ИНФОРМАЦИЯ О WHATSAPP АККАУНТЕ:');
+          console.log('📱 Номер телефона:', info.wid?.user || 'Неизвестно');
+          console.log('📱 Полный WID:', info.wid?._serialized || 'Неизвестно');
+          console.log('📱 Имя аккаунта:', info.pushname || 'Не указано');
+          console.log('📱 Платформа:', info.platform || 'Неизвестно');
+          console.log('📱 ==========================================');
+        } else {
+          console.log('⚠️ Информация о WhatsApp аккаунте пока недоступна');
+        }
+      } catch (error) {
+        console.log('⚠️ Ошибка получения информации об аккаунте:', error);
+      }
 
       setTimeout(() => {
         this.forceSaveSession();
@@ -284,16 +310,26 @@ export class WhatsAppService {
 
 
   setApplicationHandler(handler: (application: Application) => Promise<void>): void {
-    console.log('🔧 Устанавливаем обработчик заявок в WhatsApp сервисе');
+    console.log('🔧 ==========================================');
+    console.log('🔧 УСТАНОВКА ОБРАБОТЧИКА ЗАЯВОК');
+    console.log('🔧 ==========================================');
+    console.log('🔧 Полученный обработчик:', typeof handler);
+    console.log('🔧 Обработчик является функцией:', typeof handler === 'function');
+    
     this.onNewApplication = handler;
+    
     console.log('✅ Обработчик заявок установлен:', !!this.onNewApplication);
     console.log('👁️  Теперь WhatsApp будет пересылать сообщения в Telegram');
+    console.log('🔧 ==========================================');
   }
 
 
   private async handleIncomingMessage(message: Message): Promise<void> {
     try {
-      console.log('📨 Обрабатываем входящее сообщение WhatsApp:', {
+      console.log('📨 ==========================================');
+      console.log('📨 НАЧАЛО ОБРАБОТКИ ВХОДЯЩЕГО СООБЩЕНИЯ');
+      console.log('📨 ==========================================');
+      console.log('📨 Детали сообщения:', {
         from: message.from,
         body: message.body,
         type: message.type,
@@ -308,8 +344,13 @@ export class WhatsAppService {
       }
 
 
-      if (message.from.includes('@g.us') || message.isStatus) {
-        console.log('⏭️ Пропускаем сообщение (группа или статус)');
+      if (message.from.includes('@g.us')) {
+        console.log('⏭️ Пропускаем сообщение из группы');
+        return;
+      }
+      
+      if (message.isStatus) {
+        console.log('⏭️ Пропускаем статус');
         return;
       }
 
@@ -344,11 +385,12 @@ export class WhatsAppService {
       const userName = contact.name || contact.pushname || 'Пользователь';
       const userMessage = message.body;
 
-      console.log('👤 Информация о пользователе:', {
-        userPhone,
-        userName,
-        userMessage
-      });
+      console.log('👤 ==========================================');
+      console.log('👤 ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ:');
+      console.log('👤 Телефон:', userPhone);
+      console.log('👤 Имя:', userName);
+      console.log('👤 Сообщение:', userMessage?.substring(0, 100));
+      console.log('👤 ==========================================');
 
 
 
@@ -394,40 +436,68 @@ export class WhatsAppService {
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
       };
 
+      console.log('📦 ==========================================');
+      console.log('📦 СОЗДАНА ЗАЯВКА ДЛЯ ОТПРАВКИ:');
+      console.log('📦 Source:', application.source);
+      console.log('📦 Phone:', application.whatsappUserPhone);
+      console.log('📦 Name:', application.whatsappUserName);
+      console.log('📦 Message:', application.userMessage?.substring(0, 100));
+      console.log('📦 MessageType:', application.messageType);
+      console.log('📦 ==========================================');
+
 
       if (this.onNewApplication) {
-        console.log('📤 Пересылаем заявку в Telegram...');
-        console.log('✅ Обработчик заявок найден, отправляем заявку');
-        console.log('📋 Данные заявки:', JSON.stringify({
-          source: application.source,
-          userPhone: application.whatsappUserPhone,
-          userName: application.whatsappUserName,
-          message: application.userMessage
-        }, null, 2));
+        console.log('🚀 ==========================================');
+        console.log('🚀 ПЕРЕСЫЛАЕМ ЗАЯВКУ В TELEGRAM');
+        console.log('🚀 ==========================================');
+        console.log('✅ Обработчик заявок найден');
+        console.log('📤 Отправляем заявку...');
         
         try {
           await this.onNewApplication(application);
-          console.log('✅ Заявка успешно отправлена в Telegram');
+          console.log('✅✅✅ ЗАЯВКА УСПЕШНО ОТПРАВЛЕНА В TELEGRAM');
         } catch (error) {
-          console.error('❌ Ошибка при отправке заявки в Telegram:', error);
+          console.error('❌❌❌ ОШИБКА ПРИ ОТПРАВКЕ ЗАЯВКИ В TELEGRAM:', error);
+          console.error('❌ Детали ошибки:', error instanceof Error ? error.message : error);
+          console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'N/A');
         }
       } else {
-        console.log('❌ Обработчик заявок не найден');
-        console.log('🔍 Проверяем состояние onNewApplication:', this.onNewApplication);
+        console.log('❌❌❌ ==========================================');
+        console.log('❌❌❌ КРИТИЧЕСКАЯ ОШИБКА!');
+        console.log('❌❌❌ ОБРАБОТЧИК ЗАЯВОК НЕ НАЙДЕН!');
+        console.log('❌❌❌ ==========================================');
+        console.log('🔍 Состояние onNewApplication:', this.onNewApplication);
         console.log('⚠️  СООБЩЕНИЕ НЕ БУДЕТ ОТПРАВЛЕНО В TELEGRAM!');
+        console.log('🔧 Необходимо вызвать setApplicationHandler() для установки обработчика');
       }
 
 
       if (!this.thanksMessageSent.has(userPhone)) {
         const thanksText = `Спасибо за заявку!\nМы свяжемся с Вами в ближайшее время`;
+        console.log('💬 ==========================================');
+        console.log('💬 ОТПРАВЛЯЕМ БЛАГОДАРНОСТЬ КЛИЕНТУ');
+        console.log('💬 Клиент:', userPhone);
+        console.log('💬 Сообщение:', thanksText);
+        console.log('💬 ==========================================');
+        
         await message.reply(thanksText);
         this.thanksMessageSent.add(userPhone);
-        console.log('💬 Отправляем благодарственное сообщение пользователю');
-        console.log('✅ Благодарственное сообщение отправлено');
+        
+        console.log('✅ Благодарность отправлена клиенту');
+      } else {
+        console.log('⏭️ Благодарность уже отправлена этому клиенту ранее');
       }
 
+      console.log('🏁 ==========================================');
+      console.log('🏁 ОБРАБОТКА СООБЩЕНИЯ ЗАВЕРШЕНА УСПЕШНО');
+      console.log('🏁 ==========================================');
+
     } catch (error) {
-      console.error('Ошибка обработки входящего сообщения WhatsApp:', error);
+      console.error('❌❌❌ ==========================================');
+      console.error('❌❌❌ ОШИБКА ОБРАБОТКИ СООБЩЕНИЯ!');
+      console.error('❌❌❌ ==========================================');
+      console.error('❌ Детали ошибки:', error);
+      console.error('❌ Stack:', error instanceof Error ? error.stack : 'N/A');
       
 
       if (error instanceof Error && 
@@ -633,6 +703,7 @@ export class WhatsAppService {
       
 
       const savedApplicationHandler = this.onNewApplication;
+      console.log('💾 Сохраняем обработчик заявок перед перезапуском:', !!savedApplicationHandler);
 
 
       try {
@@ -711,12 +782,15 @@ export class WhatsAppService {
 
       if (savedApplicationHandler) {
         this.onNewApplication = savedApplicationHandler;
-        console.log('✅ Обработчик заявок восстановлен после перезапуска');
+        console.log('✅ Обработчик заявок восстановлен после перезапуска:', !!this.onNewApplication);
+        console.log('🔄 Повторная регистрация обработчика message...');
+      } else {
+        console.log('❌ КРИТИЧНО: Обработчик заявок НЕ БЫЛ СОХРАНЕН!');
       }
       
 
       this.client.initialize();
-      console.log('✅ WhatsApp клиент перезапущен');
+      console.log('✅ WhatsApp клиент перезапущен с восстановленным обработчиком');
     } catch (error) {
       console.error('Ошибка при перезапуске WhatsApp клиента:', error);
     }
@@ -901,6 +975,19 @@ export class WhatsAppService {
   }
 
 
+  stop(): void {
+    console.log('🛑 Остановка WhatsApp клиента...');
+    try {
+      if (this.client) {
+        this.client.destroy();
+        console.log('✅ WhatsApp клиент остановлен');
+      }
+    } catch (error) {
+      console.error('⚠️ Ошибка при остановке WhatsApp клиента:', error);
+    }
+  }
+
+
   private async checkExistingSession(): Promise<void> {
     try {
       const fs = await import('fs');
@@ -1018,13 +1105,5 @@ export class WhatsAppService {
   clearThanksHistory(): void {
     this.thanksMessageSent.clear();
     console.log('🧹 История отправленных благодарственных сообщений очищена');
-  }
-
-
-  stop(): void {
-    if (this.client) {
-      this.client.destroy();
-      console.log('WhatsApp бот остановлен');
-    }
   }
 }
