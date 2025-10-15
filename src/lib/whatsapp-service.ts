@@ -20,7 +20,7 @@ export class WhatsAppService {
     console.log('   - Data path: ./.wwebjs_auth');
     console.log('   - User data dir:', userDataDir);
     console.log('   - NODE_ENV:', process.env.NODE_ENV);
-    console.log('   - Chromium path:', process.env.NODE_ENV === 'production' ? '/usr/bin/chromium-browser' : 'system default');
+    console.log('   - Chromium path:', process.env.NODE_ENV === 'production' ? '/usr/bin/google-chrome' : 'system default');
     
     this.client = new Client({
       authStrategy: new LocalAuth({
@@ -29,7 +29,7 @@ export class WhatsAppService {
       }),
       puppeteer: {
         headless: true,
-        executablePath: process.env.NODE_ENV === 'production' ? '/usr/bin/chromium-browser' : undefined,
+        executablePath: process.env.NODE_ENV === 'production' ? '/usr/bin/google-chrome' : undefined,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
