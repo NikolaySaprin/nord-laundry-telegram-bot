@@ -13,7 +13,7 @@ export class WhatsAppService {
   constructor() {
     // Генерируем уникальный путь для user-data-dir, чтобы избежать конфликтов
     const timestamp = Date.now();
-    const userDataDir = `./tmp/chromium-user-data-${timestamp}`;
+    const userDataDir = '/tmp/whatsapp-user-data';
     
     console.log('🔧 Создаем WhatsApp Client с конфигурацией:');
     console.log('   - Auth strategy: LocalAuth');
@@ -653,7 +653,7 @@ export class WhatsAppService {
         }),
         puppeteer: {
           headless: true,
-          executablePath: process.env.NODE_ENV === 'production' ? '/usr/bin/chromium-browser' : undefined,
+          executablePath: process.env.NODE_ENV === 'production' ? '/usr/bin/google-chrome' : undefined,
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
