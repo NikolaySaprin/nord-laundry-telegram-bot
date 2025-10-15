@@ -73,6 +73,13 @@ Thumbs.db
 whatsapp_auth_*.tar.gz
 !whatsapp_auth_latest.tar.gz  # Разрешаем только последнюю версию архива
 
+# Chromium temporary directories
+tmp/
+chromium-*/
+.chromium-*
+*.crx
+*.pak
+
 # Documentation (optional - can be removed for production)
 *.md
 !README.md

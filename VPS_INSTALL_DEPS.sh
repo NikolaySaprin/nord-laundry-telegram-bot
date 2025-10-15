@@ -144,6 +144,27 @@ if [ -d ".wwebjs_auth" ]; then
     echo "✅ Permissions set"
 fi
 
+# Create and set permissions for tmp directory
+echo ""
+echo "📁 Setting up temporary directories..."
+if [ ! -d "tmp" ]; then
+    mkdir -p tmp
+    echo "✅ Created tmp directory"
+fi
+chmod -R 755 tmp/ 2>/dev/null || true
+chown -R $(whoami):$(whoami) tmp/ 2>/dev/null || true
+echo "✅ Temporary directory permissions set"
+
+# Clean up old Chromium directories
+if [ -d "tmp" ]; then
+    OLD_DIRS=$(find tmp -type d -name "chromium-*" -mmin +60 2>/dev/null | wc -l)
+    if [ "$OLD_DIRS" -gt 0 ]; then
+        echo "🗑️  Cleaning up $OLD_DIRS old Chromium directories..."
+        find tmp -type d -name "chromium-*" -mmin +60 -exec rm -rf {} + 2>/dev/null || true
+        echo "✅ Old directories cleaned"
+    fi
+fi
+
 # Restart the bot
 echo ""
 echo "7️⃣ Starting bot..."

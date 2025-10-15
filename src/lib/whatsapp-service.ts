@@ -11,6 +11,17 @@ export class WhatsAppService {
   private restartAttempts: number = 0;
 
   constructor() {
+    // Генерируем уникальный путь для user-data-dir, чтобы избежать конфликтов
+    const timestamp = Date.now();
+    const userDataDir = `./tmp/chromium-user-data-${timestamp}`;
+    
+    console.log('🔧 Создаем WhatsApp Client с конфигурацией:');
+    console.log('   - Auth strategy: LocalAuth');
+    console.log('   - Data path: ./.wwebjs_auth');
+    console.log('   - User data dir:', userDataDir);
+    console.log('   - NODE_ENV:', process.env.NODE_ENV);
+    console.log('   - Chromium path:', process.env.NODE_ENV === 'production' ? '/usr/bin/chromium-browser' : 'system default');
+    
     this.client = new Client({
       authStrategy: new LocalAuth({
         clientId: "nord-laundry-whatsapp",
@@ -18,7 +29,6 @@ export class WhatsAppService {
       }),
       puppeteer: {
         headless: true,
-
         executablePath: process.env.NODE_ENV === 'production' ? '/usr/bin/chromium-browser' : undefined,
         args: [
           '--no-sandbox',
@@ -29,6 +39,10 @@ export class WhatsAppService {
           '--no-zygote',
           '--single-process',
           '--disable-gpu',
+          '--disable-software-rasterizer',
+          `--user-data-dir=${userDataDir}`,
+          `--data-path=./tmp/chromium-data-${timestamp}`,
+          `--disk-cache-dir=./tmp/chromium-cache-${timestamp}`,
           '--disable-web-security',
           '--disable-features=VizDisplayCompositor',
           '--disable-background-timer-throttling',
@@ -54,10 +68,7 @@ export class WhatsAppService {
           '--disable-component-extensions-with-background-pages',
           '--disable-ipc-flooding-protection',
           '--disable-client-side-phishing-detection',
-          '--disable-sync',
-          '--disable-default-apps',
           '--disable-extensions-file-access-check',
-          '--disable-component-extensions-with-background-pages',
           '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         ],
         timeout: 60000,
@@ -70,13 +81,14 @@ export class WhatsAppService {
         type: 'remote',
         remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
       },
-
       authTimeoutMs: 0,
       qrMaxRetries: 0,
       restartOnAuthFail: false,
       takeoverOnConflict: false,
       takeoverTimeoutMs: 0
     });
+    
+    console.log('✅ WhatsApp Client создан успешно');
 
     this.setupEventHandlers();
   }
@@ -630,6 +642,10 @@ export class WhatsAppService {
       await new Promise(resolve => setTimeout(resolve, 5000));
       
 
+      // Генерируем уникальный путь для user-data-dir при перезапуске
+      const restartTimestamp = Date.now();
+      const restartUserDataDir = `./tmp/chromium-user-data-${restartTimestamp}`;
+      
       this.client = new Client({
         authStrategy: new LocalAuth({
           clientId: "nord-laundry-whatsapp",
@@ -637,6 +653,7 @@ export class WhatsAppService {
         }),
         puppeteer: {
           headless: true,
+          executablePath: process.env.NODE_ENV === 'production' ? '/usr/bin/chromium-browser' : undefined,
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -645,6 +662,10 @@ export class WhatsAppService {
             '--no-first-run',
             '--no-zygote',
             '--disable-gpu',
+            '--disable-software-rasterizer',
+            `--user-data-dir=${restartUserDataDir}`,
+            `--data-path=./tmp/chromium-data-${restartTimestamp}`,
+            `--disk-cache-dir=./tmp/chromium-cache-${restartTimestamp}`,
             '--disable-web-security',
             '--disable-features=VizDisplayCompositor',
             '--disable-background-timer-throttling',
