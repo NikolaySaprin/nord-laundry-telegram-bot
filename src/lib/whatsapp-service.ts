@@ -11,6 +11,13 @@ export class WhatsAppService {
   private restartAttempts: number = 0;
 
   constructor() {
+    // КРИТИЧНО: Проверяем флаг принудительного сброса ДО создания клиента
+    const forceReset = process.env.WHATSAPP_FORCE_RESET === 'true';
+    if (forceReset) {
+      console.log('🚨 РЕЖИМ ПРИНУДИТЕЛЬНОГО СБРОСА: WHATSAPP_FORCE_RESET=true');
+      console.log('🗑️  .wwebjs_auth будет удалена при первом запуске');
+    }
+    
     this.client = new Client({
       authStrategy: new LocalAuth({
         clientId: "nord-laundry-whatsapp",
@@ -30,8 +37,10 @@ export class WhatsAppService {
           '--single-process',
           '--disable-gpu',
           '--disable-software-rasterizer',
-          '--user-data-dir=/tmp/chromium-user-data',
-          '--temp-profile',
+          // ИСПРАВЛЕНО: используем ./tmp вместо /tmp
+          '--user-data-dir=./tmp/chromium-user-data',
+          '--data-path=./tmp/chromium-data',
+          '--disk-cache-dir=./tmp/chromium-cache',
           '--disable-web-security',
           '--disable-features=VizDisplayCompositor',
           '--disable-background-timer-throttling',
@@ -961,7 +970,10 @@ export class WhatsAppService {
     console.log('🚀 Инициализация WhatsApp клиента...');
     console.log('🔒 Настройка долгосрочной сессии (10 лет)...');
     
-
+    // КРИТИЧНО: Создаем ./tmp директорию если не существует
+    this.ensureTmpDirectory();
+    
+    // Проверяем сессию
     this.checkExistingSession();
     
     this.client.initialize();
@@ -975,6 +987,32 @@ export class WhatsAppService {
       await this.monitorSessionHealth();
     }, 5 * 60 * 1000);
 
+  }
+
+  private ensureTmpDirectory(): void {
+    try {
+      const fs = require('fs');
+      const tmpDir = './tmp';
+      
+      if (!fs.existsSync(tmpDir)) {
+        console.log('📁 Создаем ./tmp директорию...');
+        fs.mkdirSync(tmpDir, { recursive: true });
+        console.log('✅ ./tmp директория создана');
+      }
+      
+      // Также создаем подпапки
+      const subdirs = ['chromium-user-data', 'chromium-data', 'chromium-cache'];
+      subdirs.forEach(dir => {
+        const fullPath = `${tmpDir}/${dir}`;
+        if (!fs.existsSync(fullPath)) {
+          fs.mkdirSync(fullPath, { recursive: true });
+        }
+      });
+      
+      console.log('✅ Все временные директории готовы');
+    } catch (error) {
+      console.error('⚠️ Ошибка создания ./tmp директории:', error);
+    }
   }
 
 

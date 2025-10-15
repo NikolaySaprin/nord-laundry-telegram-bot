@@ -19,6 +19,7 @@ sleep 3
 # 4. Удалите .wwebjs_auth ВРУЧНУЮ
 ls -la .wwebjs_auth/
 rm -rf .wwebjs_auth/
+rm -rf ./tmp/
 sudo rm -rf .wwebjs_auth/
 
 # 5. Удалите Chromium user-data

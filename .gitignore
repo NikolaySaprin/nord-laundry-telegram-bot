@@ -72,6 +72,9 @@ Thumbs.db
 .wwebjs_auth/
 whatsapp_auth_*.tar.gz
 
+# Temporary Chromium data
+tmp/
+
 # Documentation (optional - can be removed for production)
 *.md
 !README.md

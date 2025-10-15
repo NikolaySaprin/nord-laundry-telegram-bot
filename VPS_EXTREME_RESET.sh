@@ -75,7 +75,16 @@ sudo rm -f whatsapp_auth_*.tar.gz 2>/dev/null
 find . -name "whatsapp_auth_*.tar.gz" -delete 2>/dev/null
 echo "✅ Архивы удалены"
 
-# КРИТИЧНО: Удаляем user-data-dir Chromium
+# КРИТИЧНО: Удаляем ./tmp директорию проекта
+echo "🗑️  Удаление ./tmp директории проекта..."
+if [ -d "./tmp" ]; then
+    rm -rf ./tmp 2>/dev/null
+    echo "✅ ./tmp удалена"
+else
+    echo "✅ ./tmp не найдена"
+fi
+
+# Удаляем user-data-dir Chromium в /tmp (если используется)
 echo "🗑️  Удаление Chromium user-data-dir..."
 rm -rf /tmp/chromium-user-data 2>/dev/null
 sudo rm -rf /tmp/chromium-user-data 2>/dev/null
